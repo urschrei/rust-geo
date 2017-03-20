@@ -20,5 +20,7 @@ pub mod simplify;
 pub mod simplifyvw;
 /// Calculates the convex hull of a geometry.
 pub mod convexhull;
+/// Calculates the antipodal points of a geometry
+pub mod antipodal;
 /// Rotates a geometry about an origin by an angle, in degrees
 pub mod rotate;
