@@ -61,13 +61,13 @@ fn point_location<T>(p_a: &Point<T>, p_b: &Point<T>, p_c: &Point<T>) -> bool
     cross_prod(p_a, p_b, p_c) > T::zero()
 }
 
-fn antipodal<T>(mut points: &mut [Point<T>]) -> usize
+fn antipodal<T>(mut points: &mut [Point<T>]) -> Vec<(Point<T>, Point<T>)>
     where T: Float
 {
     // can't build a hull from fewer than four points
     if points.len() < 4 {
-        return 0 as usize
-        // return points.to_vec();
+        // return 0 as usize
+        return vec![(Point::new(T::zero(), T::zero()), Point::new(T::zero(), T::zero()))];
     }
     let mut min = swap_remove_to_first(&mut points, 0);
     let mut max = swap_remove_to_first(&mut points, 0);
@@ -86,5 +86,24 @@ fn antipodal<T>(mut points: &mut [Point<T>]) -> usize
     let upper = points[..last_upper].to_vec();
     let last_lower = partition(&mut points, |p| point_location(min, max, p));
     let lower = points[..last_lower].to_vec();
-    1 as usize
+    // Now we have U and L, apply rotating callipers
+    let mut antipodal: Vec<(Point<T>, Point<T>)> = vec![];
+    let mut i = 0;
+    let mut j = lower.len();
+    while i < upper.len() || j > 0 {
+        antipodal.push((upper[i], lower[j]));
+        //if i or j made it all the way through
+        //advance other size
+        if i == upper.len() {
+            j = j - 1;
+        } else if j == 1 {
+            i = i + 1;
+        } else if (upper[i + 1].y() - upper[i].y()) * (lower[j].x() - lower[j - 1].x()) >
+                  (upper[i + 1].x() - upper[i].x()) * (lower[j].y() - lower[j - 1].y()) {
+            i = i + 1;
+        } else {
+            j = j - 1;
+        }
+    }
+    antipodal
 }
