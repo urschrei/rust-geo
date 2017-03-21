@@ -4,9 +4,7 @@ use std::fmt::Debug;
 use std::mem;
 use algorithm::hull_helpers::{
     swap_remove_to_first,
-    swap_remove_to_last,
     partition,
-    cross_prod,
     point_location
 };
 
@@ -42,17 +40,17 @@ fn antipodal<T>(mut points: &mut [Point<T>]) -> Vec<(Point<T>, Point<T>)>
         antipodal.push((upper[i], lower[j]));
         if i == upper.len() - 1 {
             // we've walked all the way along the upper hull
-            j = j - 1;
+            j -= 1;
         } else if j == 0 {
             // we've walked all the way along the lower hull
-            i = i + 1;
+            i += 1;
             // There are points remaining, so compare the slopes of next hull edges
             // Could we have divide-by-0 errors here?
         } else if (upper[i + 1].y() - upper[i].y()) * (lower[j].x() - lower[j - 1].x()) >
                   (upper[i + 1].x() - upper[i].x()) * (lower[j].y() - lower[j - 1].y()) {
-            i = i + 1;
+            i += 1;
         } else {
-            j = j - 1;
+            j -= 1;
         }
     }
     antipodal
