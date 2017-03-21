@@ -1,3 +1,5 @@
+// Pirzadeh, H. (1999) Computational geometry with the rotating calipers., pp30 – 32
+// Available from: http://digitool.library.mcgill.ca/R/-?func=dbin-jump-full&object_id=21623&silo_library=GEN01
 use num_traits::Float;
 use types::{Point, Polygon, MultiPolygon, LineString, MultiPoint, MultiLineString};
 use std::fmt::Debug;
