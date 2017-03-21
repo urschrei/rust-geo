@@ -3,9 +3,7 @@ use types::{Point, Polygon, MultiPolygon, LineString, MultiPoint, MultiLineStrin
 use std::mem;
 use algorithm::hull_helpers::{
     swap_remove_to_first,
-    swap_remove_to_last,
     partition,
-    cross_prod,
     point_location
 };
 
