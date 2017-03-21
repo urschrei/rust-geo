@@ -1,6 +1,7 @@
 use num_traits::Float;
 use types::{Point, Polygon, MultiPolygon, LineString, MultiPoint, MultiLineString};
 use std::mem;
+use std::fmt::Debug;
 
 fn swap_remove_to_first<'a, T>(slice: &mut &'a mut [T], idx: usize) -> &'a mut T {
     let tmp = mem::replace(slice, &mut []);
@@ -62,7 +63,7 @@ fn point_location<T>(p_a: &Point<T>, p_b: &Point<T>, p_c: &Point<T>) -> bool
 }
 
 fn antipodal<T>(mut points: &mut [Point<T>]) -> Vec<(Point<T>, Point<T>)>
-    where T: Float
+    where T: Float + Debug
 {
     // can't build a hull from fewer than four points
     if points.len() < 4 {
@@ -89,14 +90,14 @@ fn antipodal<T>(mut points: &mut [Point<T>]) -> Vec<(Point<T>, Point<T>)>
     // Now we have U and L, apply rotating callipers
     let mut antipodal: Vec<(Point<T>, Point<T>)> = vec![];
     let mut i = 0;
-    let mut j = lower.len();
-    while i < upper.len() || j > 0 {
+    let mut j = lower.len() - 1;
+    while i < upper.len() - 1 || j > 0 {
         antipodal.push((upper[i], lower[j]));
-        //if i or j made it all the way through
-        //advance other size
-        if i == upper.len() {
+        // if i or j made it all the way through
+        // advance other size
+        if i == upper.len() - 1 {
             j = j - 1;
-        } else if j == 1 {
+        } else if j == 0 {
             i = i + 1;
         } else if (upper[i + 1].y() - upper[i].y()) * (lower[j].x() - lower[j - 1].x()) >
                   (upper[i + 1].x() - upper[i].x()) * (lower[j].y() - lower[j - 1].y()) {
@@ -105,5 +106,20 @@ fn antipodal<T>(mut points: &mut [Point<T>]) -> Vec<(Point<T>, Point<T>)>
             j = j - 1;
         }
     }
+    println!("{:?}", antipodal);
     antipodal
+}
+
+#[cfg(test)]
+mod test {
+    use types::Point;
+    use super::*;
+    #[test]
+    fn test_antipodes() {
+        let points_raw = vec![(5., 1.), (4., 2.), (4., 3.), (5., 4.), (6., 4.), (7., 3.),
+                              (7., 2.), (6., 1.), (5., 1.)];
+        let mut points = points_raw.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
+        let antipodes = antipodal(points.as_mut_slice());
+        assert_eq!(antipodes, vec![(Point::new(0.0, 1.0), Point::new(2.0, 3.0))]);
+    }
 }
