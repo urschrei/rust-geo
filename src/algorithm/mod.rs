@@ -18,6 +18,8 @@ pub mod boundingbox;
 pub mod simplify;
 /// Simplifies a `LineString` using the Visvalingam-Whyatt algorithm.
 pub mod simplifyvw;
+// helpers for convex hull and antipodal functions
+mod hull_helpers;
 /// Calculates the convex hull of a geometry.
 pub mod convexhull;
 /// Calculates the antipodal points of a geometry
