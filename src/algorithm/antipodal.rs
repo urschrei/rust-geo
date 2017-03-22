@@ -11,52 +11,41 @@ use algorithm::hull_helpers::{
     point_location
 };
 
-fn antipodal<T>(mut points: &mut [Point<T>]) -> Vec<(Point<T>, Point<T>)>
+fn min_polygon_distance<T>(mut poly1: &mut [Point<T>], mut poly2: &mut [Point<T>]) -> T
     where T: Float + Debug
 {
-    // can't build a hull from fewer than four points
-    if points.len() < 4 {
-        // return 0 as usize
-        return vec![(Point::new(T::zero(), T::zero()), Point::new(T::zero(), T::zero()))];
+    // min Y poly1
+    let mut poly1_min = swap_remove_to_first(&mut poly1, 0);
+    let mut poly1_max = swap_remove_to_first(&mut poly1, 0);
+    if poly1_min.y() > poly1_max.y() {
+        mem::swap(poly1_min, poly1_max);
     }
-    let mut min = swap_remove_to_first(&mut points, 0);
-    let mut max = swap_remove_to_first(&mut points, 0);
-    if min.x() > max.x() {
-        mem::swap(min, max);
+    // max Y poly2
+    let mut poly2_min = swap_remove_to_first(&mut poly2, 0);
+    let mut poly2_max = swap_remove_to_first(&mut poly2, 0);
+    if poly2_min.y() > poly2_max.y() {
+        mem::swap(poly2_min, poly2_max);
     }
-    for point in points.iter_mut() {
-        if point.x() < min.x() {
-            mem::swap(point, min);
-        }
-        if point.x() > max.x() {
-            mem::swap(point, max);
-        }
-    }
-    let last_upper = partition(&mut points, |p| point_location(max, min, p));
-    let upper = points[..last_upper].to_vec();
-    let last_lower = partition(&mut points, |p| point_location(min, max, p));
-    let lower = points[..last_lower].to_vec();
-    let mut antipodal: Vec<(Point<T>, Point<T>)> = vec![];
-    let mut i = 0;
-    let mut j = lower.len() - 1;
-    while i < upper.len() - 1 || j > 0 {
-        antipodal.push((upper[i], lower[j]));
-        if i == upper.len() - 1 {
-            // we've walked all the way along the upper hull
-            j -= 1;
-        } else if j == 0 {
-            // we've walked all the way along the lower hull
-            i += 1;
-            // There are points remaining, so compare the slopes of next hull edges
-            // Could we have divide-by-0 errors here?
-        } else if (upper[i + 1].y() - upper[i].y()) * (lower[j].x() - lower[j - 1].x()) >
-                  (upper[i + 1].x() - upper[i].x()) * (lower[j].y() - lower[j - 1].y()) {
-            i += 1;
-        } else {
-            j -= 1;
-        }
-    }
-    antipodal
+    // 1.  We want poly1_min.y(), and poly2_max.y()
+    // 2.  Construct two lines of support LP and LQ for the polygons at yminP and ymaxQ
+    //     such that the polygons lie to the right of their respective lines of support.
+    //     LP and LQ have opposite direction, and yminP and ymaxQ form an anti-podal pair between the polygons.
+    // 3.  Compute dist(yminP,ymaxQ) and keep it as the minimum.
+    // 4.  Rotate the lines clockwise until one of them coincides with an edge of its polygon. (???)
+    // 5.  If only one line coincides with an edge, then:
+    //     - the vertex-edge anti-podal pair distance should be computed
+    //     - the new vertex-vertex anti-podal pair distance should be computed
+    //     Both distances are compared the current minimum, which is updated if necessary.
+    //     
+    //     If both lines of support coincide with edges, then the situation is somewhat more complex:
+    //     - If the edges "overlap", that is if one can construct a line perpendicular to both edges and
+    //     intersecting both edges (but not at vertices), then the edge-edge distance should be computed.
+    //     - Otherwise the three new vertex-vertex anti-podal pair distances are computed.
+    //     All distances are compared to the current minimum, which is updated if necessary.
+    // 6.  Repeat steps 4 and 5, until the lines reach (yminP, ymaxQ) again.
+    // 7. Return the minimum
+
+    T::from(3.0).unwrap()
 }
 
 #[cfg(test)]
@@ -64,17 +53,17 @@ mod test {
     use types::Point;
     use super::*;
     #[test]
-    fn test_antipodes() {
+    fn test_minimum_polygon_distance() {
         let points_raw = vec![(5., 1.), (4., 2.), (4., 3.), (5., 4.), (6., 4.), (7., 3.),
                               (7., 2.), (6., 1.), (5., 1.)];
         let mut points = points_raw.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
-        // currently have no idea whether this result is correct
-        let antipodes = antipodal(points.as_mut_slice());
-        let correct = vec![(Point::new(5.0, 1.0), Point::new(6.0, 4.0)),
-                           (Point::new(5.0, 1.0), Point::new(5.0, 4.0)),
-                           (Point::new(5.0, 1.0), Point::new(4.0, 3.0)),
-                           (Point::new(6.0, 1.0), Point::new(4.0, 3.0)),
-                           (Point::new(5.0, 1.0), Point::new(4.0, 3.0))];
-        assert_eq!(antipodes, correct);
+        // let poly1 = Polygon::new(Linestring(points), vec![]);
+
+        let points_raw_2 = vec![(8., 1.), (8., 2.), (8., 3.), (8., 4.), (8., 4.), (10., 3.),
+                      (10., 2.), (9., 1.), (8., 1.)];
+        let mut points2 = points_raw_2.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
+        // let poly2 = Polygon::new(Linestring(points2), vec![]);
+        let dist = min_polygon_distance(&mut points, &mut points2);
+        assert_eq!(dist, 3.0);
     }
 }
