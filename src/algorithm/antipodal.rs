@@ -11,40 +11,79 @@ use algorithm::hull_helpers::{
     partition,
     point_location
 };
+use algorithm::convexhull::ConvexHull;
 
-fn min_polygon_distance<T>(mut poly1: &mut [Point<T>], mut poly2: &mut [Point<T>]) -> T
+fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     where T: Float + Debug
 {
-    // poly1 min y
-    let mut poly1_min = swap_remove_to_first(&mut poly1, 0);
-    let mut poly1_max = swap_remove_to_first(&mut poly1, 0);
-    if poly1_min.y() > poly1_max.y() {
-        mem::swap(poly1_min, poly1_max);
+    // polygons must be convex
+    let mut poly1_hull = poly1.exterior.0.as_mut_slice();
+    let mut poly2_hull = poly2.exterior.0.as_mut_slice();
+    // guess
+    let mut poly1_xmin = poly1_hull.first().unwrap().clone();
+    let mut poly2_xmin = poly2_hull.first().unwrap().clone();
+
+    // poly1
+    let mut poly1_ymin = swap_remove_to_first(&mut poly1_hull, 0);
+    let mut poly1_ymax = swap_remove_to_first(&mut poly1_hull, 0);
+    let mut poly1_xmax = swap_remove_to_first(&mut poly1_hull, 0);
+    if poly1_ymin.y() > poly1_ymax.y() {
+        mem::swap(poly1_ymin, poly1_ymax);
     }
-    for point in poly1.iter_mut() {
-        if point.y() < poly1_min.y() {
-            mem::swap(point, poly1_min);
+    for point in poly1_hull.iter_mut() {
+        if point.y() < poly1_ymin.y() {
+            mem::swap(point, poly1_ymin);
         }
-        if point.y() > poly1_max.y() {
-            mem::swap(point, poly1_max);
+        if point.y() > poly1_ymax.y() {
+            mem::swap(point, poly1_ymax);
         }
-    }
-    // poly2 max y
-    let mut poly2_min = swap_remove_to_first(&mut poly2, 0);
-    let mut poly2_max = swap_remove_to_first(&mut poly2, 0);
-    if poly2_min.y() > poly2_max.y() {
-        mem::swap(poly2_min, poly2_max);
-    }
-    for point in poly2.iter_mut() {
-        if point.y() < poly2_min.y() {
-            mem::swap(point, poly2_min);
+        if point.x() > poly1_xmax.x() {
+            mem::swap(point, &mut poly1_xmax);
         }
-        if point.y() > poly2_max.y() {
-            mem::swap(point, poly2_max);
+        if point.x() < poly1_xmin.x() {
+            mem::swap(point, &mut poly1_xmin);
         }
     }
-    println!("poly 1 min Y: {:?}", poly1_min.y());
-    println!("poly 2 max Y: {:?}", poly2_max.y());
+    // poly2
+    let mut poly2_ymin = swap_remove_to_first(&mut poly2_hull, 0);
+    let mut poly2_ymax = swap_remove_to_first(&mut poly2_hull, 0);
+    let mut poly2_xmax = swap_remove_to_first(&mut poly2_hull, 0);
+    if poly2_ymin.y() > poly2_ymax.y() {
+        mem::swap(poly2_ymin, poly2_ymax);
+    }
+    for point in poly2_hull.iter_mut() {
+        if point.y() < poly2_ymin.y() {
+            mem::swap(point, poly2_ymin);
+        }
+        if point.y() > poly2_ymax.y() {
+            mem::swap(point, poly2_ymax);
+        }
+        if point.x() > poly2_xmax.x() {
+            mem::swap(point, &mut poly2_xmax);
+        }
+        if point.x() < poly2_xmin.x() {
+            mem::swap(point, &mut poly2_xmin);
+        }
+    }
+    // lines of support must be parallel to the x axis
+    // lpoly1 must have poly1 to its right
+    // lpoly2 must have poly2 to its right
+    let mut lpoly_1 = LineString(vec![
+        Point::new(poly1_xmax.x(), poly1_ymin.y()),
+        Point::new(poly1_ymin.x(), poly1_ymin.y()),
+        Point::new(poly1_xmin.x(), poly1_ymin.y())
+    ]);
+    let mut lpoly_2 = LineString(vec![
+        Point::new(poly2_xmin.x(), poly2_ymax.y()),
+        Point::new(poly2_ymax.x(), poly2_ymax.y()),
+        Point::new(poly2_xmax.x(), poly2_ymax.y())
+    ]);
+    println!("poly 1 min Y: {:?}", poly1_ymin.y());
+    println!("poly 2 max Y: {:?}", poly2_ymax.y());
+    println!("poly 1 min X: {:?}", poly1_xmin);
+    println!("poly 2 max X: {:?}", poly2_xmax);
+    println!("Bottom support (r to l: {:?}", lpoly_1);
+    println!("Top support (l to r): {:?}", lpoly_2);
     // 1.  We want poly1_min.y(), and poly2_max.y()
     // 2.  Construct two lines of support, parallel to the x axis – LP and LQ –
     //     which touch the polygons at yminP and ymaxQ
@@ -81,13 +120,13 @@ mod test {
         let points_raw = vec![(5., 1.), (4., 2.), (4., 3.), (5., 4.), (6., 4.), (7., 3.),
                               (7., 2.), (6., 1.), (5., 1.)];
         let mut points = points_raw.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
-        // let poly1 = Polygon::new(Linestring(points), vec![]);
+        let poly1 = Polygon::new(LineString(points), vec![]);
 
         let points_raw_2 = vec![(8., 1.), (7., 2.), (7., 3.), (8., 4.), (9., 4.), (10., 3.),
                       (10., 2.), (9., 1.), (8., 1.)];
         let mut points2 = points_raw_2.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
-        // let poly2 = Polygon::new(Linestring(points2), vec![]);
-        let dist = min_polygon_distance(&mut points, &mut points2);
+        let poly2 = Polygon::new(LineString(points2), vec![]);
+        let dist = min_polygon_distance(poly1.convex_hull(), poly2.convex_hull());
         assert_eq!(dist, 3.0);
     }
 }
