@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::mem;
 use algorithm::hull_helpers::{
     swap_remove_to_first,
+    swap_remove_to_last,
     partition,
     point_location
 };
@@ -14,18 +15,36 @@ use algorithm::hull_helpers::{
 fn min_polygon_distance<T>(mut poly1: &mut [Point<T>], mut poly2: &mut [Point<T>]) -> T
     where T: Float + Debug
 {
-    // min Y poly1
+    // poly1 min y
     let mut poly1_min = swap_remove_to_first(&mut poly1, 0);
     let mut poly1_max = swap_remove_to_first(&mut poly1, 0);
     if poly1_min.y() > poly1_max.y() {
         mem::swap(poly1_min, poly1_max);
     }
-    // max Y poly2
+    for point in poly1.iter_mut() {
+        if point.y() < poly1_min.y() {
+            mem::swap(point, poly1_min);
+        }
+        if point.y() > poly1_max.y() {
+            mem::swap(point, poly1_max);
+        }
+    }
+    // poly2 max y
     let mut poly2_min = swap_remove_to_first(&mut poly2, 0);
     let mut poly2_max = swap_remove_to_first(&mut poly2, 0);
     if poly2_min.y() > poly2_max.y() {
         mem::swap(poly2_min, poly2_max);
     }
+    for point in poly2.iter_mut() {
+        if point.y() < poly2_min.y() {
+            mem::swap(point, poly2_min);
+        }
+        if point.y() > poly2_max.y() {
+            mem::swap(point, poly2_max);
+        }
+    }
+    println!("poly 1 min Y: {:?}", poly1_min.y());
+    println!("poly 2 max Y: {:?}", poly2_max.y());
     // 1.  We want poly1_min.y(), and poly2_max.y()
     // 2.  Construct two lines of support, parallel to the x axis – LP and LQ –
     //     which touch the polygons at yminP and ymaxQ
@@ -64,7 +83,7 @@ mod test {
         let mut points = points_raw.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
         // let poly1 = Polygon::new(Linestring(points), vec![]);
 
-        let points_raw_2 = vec![(8., 1.), (8., 2.), (8., 3.), (8., 4.), (8., 4.), (10., 3.),
+        let points_raw_2 = vec![(8., 1.), (7., 2.), (7., 3.), (8., 4.), (9., 4.), (10., 3.),
                       (10., 2.), (9., 1.), (8., 1.)];
         let mut points2 = points_raw_2.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
         // let poly2 = Polygon::new(Linestring(points2), vec![]);
