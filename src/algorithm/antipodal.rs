@@ -27,11 +27,16 @@ fn min_polygon_distance<T>(mut poly1: &mut [Point<T>], mut poly2: &mut [Point<T>
         mem::swap(poly2_min, poly2_max);
     }
     // 1.  We want poly1_min.y(), and poly2_max.y()
-    // 2.  Construct two lines of support LP and LQ for the polygons at yminP and ymaxQ
+    // 2.  Construct two lines of support, parallel to the x axis – LP and LQ –
+    //     which touch the polygons at yminP and ymaxQ
     //     such that the polygons lie to the right of their respective lines of support.
     //     LP and LQ have opposite direction, and yminP and ymaxQ form an anti-podal pair between the polygons.
+    //     The lines of support lie on vertices pi ∈ P, and qj ∈ Q, and determine two angles
+    //     θi, θj, which are computed
     // 3.  Compute dist(yminP,ymaxQ) and keep it as the minimum.
-    // 4.  Rotate the lines clockwise until one of them coincides with an edge of its polygon. (???)
+    // 3a. Compute θ = θi.min(θj)
+    // 4.  Rotate the lines clockwise about pi and qj by θ
+    //     One of the lines should now be flush with an edge of its polygon. (???)
     // 5.  If only one line coincides with an edge, then:
     //     - the vertex-edge anti-podal pair distance should be computed
     //     - the new vertex-vertex anti-podal pair distance should be computed
