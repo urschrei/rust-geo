@@ -20,3 +20,5 @@ pub mod simplify;
 pub mod simplifyvw;
 /// Calculates the convex hull of a geometry.
 pub mod convexhull;
+/// Rotates a geometry about an origin by an angle, in degrees
+pub mod rotate;
