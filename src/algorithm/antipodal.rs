@@ -12,9 +12,8 @@ use algorithm::distance::Distance;
 fn rotation_matrix<T>(angle: T, origin: &Point<T>, points: &[Point<T>]) -> Vec<Point<T>>
     where T: Float + Debug
 {
-    println!("Origin: {:?}", origin);
-    let cos_theta = angle.cos();
-    let sin_theta = angle.sin();
+    let cos_theta = angle.to_radians().cos();
+    let sin_theta = angle.to_radians().sin();
     let x0 = origin.x();
     let y0 = origin.y();
     points.iter()
