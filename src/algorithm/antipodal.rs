@@ -9,24 +9,23 @@ use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partiti
 use algorithm::convexhull::ConvexHull;
 use algorithm::distance::Distance;
 
-// factory function for rotation matrices
-fn rotation_matrix<T>(angle: T, origin: &Point<T>) -> Box<Fn(&[Point<T>]) -> Vec<Point<T>>>
-    where T: 'static + Float + Debug
+fn rotation_matrix<T>(angle: T, origin: &Point<T>, points: &[Point<T>]) -> Vec<Point<T>>
+    where T: Float + Debug
 {
+    println!("Origin: {:?}", origin);
     let cos_theta = angle.cos();
     let sin_theta = angle.sin();
-    let x_0 = origin.x();
-    let y_0 = origin.y();
-    Box::new(move |slice| {
-        slice.iter()
-            .map(|point| {
-                     let x_trans = point.x() - x_0;
-                     let y_trans = point.y() - y_0;
-                     Point::new(x_trans * cos_theta - y_trans * sin_theta + x_0,
-                                x_trans * sin_theta + y_trans * cos_theta + y_0)
-                 })
-            .collect::<Vec<_>>()
-    })
+    let x0 = origin.x();
+    let y0 = origin.y();
+    points.iter()
+        .map(|point| {
+                println!("Point: {:?}", point);
+                 let x = point.x() - x0;
+                 let y = point.y() - y0;
+                 Point::new(x * cos_theta - y * sin_theta + x0,
+                            x * sin_theta + y * cos_theta + y0)
+             })
+        .collect::<Vec<_>>()
 }
 
 // calculate max and min polygon points
@@ -119,8 +118,7 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     println!("Upper Angle: {:?}", upper_angle);
     println!("Minimum: {:?}", lower_angle.min(upper_angle));
 
-    let rotate = rotation_matrix(45.0, &poly1_ymin);
-    let rotated = rotate(&lpoly_1.0);
+    let rotated = rotation_matrix(T::from(-45.0).unwrap(), &poly1_ymin, lpoly_1.0.as_slice());
     println!("Rotated: {:?}", rotated);
 
     // 1.  We want poly1_min.y(), and poly2_max.y()
