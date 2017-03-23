@@ -5,13 +5,36 @@ use num_traits::Float;
 use types::{Point, Polygon, MultiPolygon, LineString, MultiPoint, MultiLineString};
 use std::fmt::Debug;
 use std::mem;
-use algorithm::hull_helpers::{
-    swap_remove_to_first,
-    swap_remove_to_last,
-    partition,
-    point_location
-};
+use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partition, point_location};
 use algorithm::convexhull::ConvexHull;
+
+// calculate max and min polygon points
+fn min_max<T>(mut hull: &mut [Point<T>]) -> (Point<T>, Point<T>, Point<T>, Point<T>)
+    where T: Float
+{
+    let mut ymin = swap_remove_to_first(&mut hull, 0);
+    let mut ymax = swap_remove_to_first(&mut hull, 0);
+    let mut xmax = swap_remove_to_first(&mut hull, 0);
+    let mut xmin = swap_remove_to_first(&mut hull, 0);
+    if ymin.y() > ymax.y() {
+        mem::swap(ymin, ymax);
+    }
+    for point in hull.iter_mut() {
+        if point.y() < ymin.y() {
+            mem::swap(point, ymin);
+        }
+        if point.y() > ymax.y() {
+            mem::swap(point, ymax);
+        }
+        if point.x() > xmax.x() {
+            mem::swap(point, &mut xmax);
+        }
+        if point.x() < xmin.x() {
+            mem::swap(point, &mut xmin);
+        }
+    }
+    (*ymin, *ymax, *xmin, *xmax)
+}
 
 fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     where T: Float + Debug
@@ -19,71 +42,27 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     // polygons must be convex
     let mut poly1_hull = poly1.exterior.0.as_mut_slice();
     let mut poly2_hull = poly2.exterior.0.as_mut_slice();
-    // guess
-    let mut poly1_xmin = poly1_hull.first().unwrap().clone();
-    let mut poly2_xmin = poly2_hull.first().unwrap().clone();
 
-    // poly1
-    let mut poly1_ymin = swap_remove_to_first(&mut poly1_hull, 0);
-    let mut poly1_ymax = swap_remove_to_first(&mut poly1_hull, 0);
-    let mut poly1_xmax = swap_remove_to_first(&mut poly1_hull, 0);
-    if poly1_ymin.y() > poly1_ymax.y() {
-        mem::swap(poly1_ymin, poly1_ymax);
-    }
-    for point in poly1_hull.iter_mut() {
-        if point.y() < poly1_ymin.y() {
-            mem::swap(point, poly1_ymin);
-        }
-        if point.y() > poly1_ymax.y() {
-            mem::swap(point, poly1_ymax);
-        }
-        if point.x() > poly1_xmax.x() {
-            mem::swap(point, &mut poly1_xmax);
-        }
-        if point.x() < poly1_xmin.x() {
-            mem::swap(point, &mut poly1_xmin);
-        }
-    }
-    // poly2
-    let mut poly2_ymin = swap_remove_to_first(&mut poly2_hull, 0);
-    let mut poly2_ymax = swap_remove_to_first(&mut poly2_hull, 0);
-    let mut poly2_xmax = swap_remove_to_first(&mut poly2_hull, 0);
-    if poly2_ymin.y() > poly2_ymax.y() {
-        mem::swap(poly2_ymin, poly2_ymax);
-    }
-    for point in poly2_hull.iter_mut() {
-        if point.y() < poly2_ymin.y() {
-            mem::swap(point, poly2_ymin);
-        }
-        if point.y() > poly2_ymax.y() {
-            mem::swap(point, poly2_ymax);
-        }
-        if point.x() > poly2_xmax.x() {
-            mem::swap(point, &mut poly2_xmax);
-        }
-        if point.x() < poly2_xmin.x() {
-            mem::swap(point, &mut poly2_xmin);
-        }
-    }
+    let (poly1_ymin, poly1_ymax, poly1_xmin, poly1_xmax) = min_max(&mut poly1_hull);
+    let (poly2_ymin, poly2_ymax, poly2_xmin, poly2_xmax) = min_max(&mut poly2_hull);
+
     // lines of support must be parallel to the x axis
     // lpoly1 must have poly1 to its right
     // lpoly2 must have poly2 to its right
-    let mut lpoly_1 = LineString(vec![
-        Point::new(poly1_xmax.x(), poly1_ymin.y()),
-        Point::new(poly1_ymin.x(), poly1_ymin.y()),
-        Point::new(poly1_xmin.x(), poly1_ymin.y())
-    ]);
-    let mut lpoly_2 = LineString(vec![
-        Point::new(poly2_xmin.x(), poly2_ymax.y()),
-        Point::new(poly2_ymax.x(), poly2_ymax.y()),
-        Point::new(poly2_xmax.x(), poly2_ymax.y())
-    ]);
+    let mut lpoly_1 = LineString(vec![Point::new(poly1_xmax.x(), poly1_ymin.y()),
+                                      Point::new(poly1_ymin.x(), poly1_ymin.y()),
+                                      Point::new(poly1_xmin.x(), poly1_ymin.y())]);
+    let mut lpoly_2 = LineString(vec![Point::new(poly2_xmin.x(), poly2_ymax.y()),
+                                      Point::new(poly2_ymax.x(), poly2_ymax.y()),
+                                      Point::new(poly2_xmax.x(), poly2_ymax.y())]);
+
     println!("poly 1 min Y: {:?}", poly1_ymin.y());
     println!("poly 2 max Y: {:?}", poly2_ymax.y());
     println!("poly 1 min X: {:?}", poly1_xmin);
     println!("poly 2 max X: {:?}", poly2_xmax);
     println!("Bottom support (r to l: {:?}", lpoly_1);
     println!("Top support (l to r): {:?}", lpoly_2);
+
     // 1.  We want poly1_min.y(), and poly2_max.y()
     // 2.  Construct two lines of support, parallel to the x axis – LP and LQ –
     //     which touch the polygons at yminP and ymaxQ
@@ -99,7 +78,7 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     //     - the vertex-edge anti-podal pair distance should be computed
     //     - the new vertex-vertex anti-podal pair distance should be computed
     //     Both distances are compared the current minimum, which is updated if necessary.
-    //     
+    //
     //     If both lines of support coincide with edges, then the situation is somewhat more complex:
     //     - If the edges "overlap", that is if one can construct a line perpendicular to both edges and
     //     intersecting both edges (but not at vertices), then the edge-edge distance should be computed.
@@ -123,7 +102,7 @@ mod test {
         let poly1 = Polygon::new(LineString(points), vec![]);
 
         let points_raw_2 = vec![(8., 1.), (7., 2.), (7., 3.), (8., 4.), (9., 4.), (10., 3.),
-                      (10., 2.), (9., 1.), (8., 1.)];
+                                (10., 2.), (9., 1.), (8., 1.)];
         let mut points2 = points_raw_2.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
         let poly2 = Polygon::new(LineString(points2), vec![]);
         let dist = min_polygon_distance(poly1.convex_hull(), poly2.convex_hull());
