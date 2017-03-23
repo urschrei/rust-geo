@@ -53,7 +53,7 @@ fn vector_angle<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>, d: &Point<T>) -> T
 
     let cos_theta = ab.dot(&cd) / (magnitude_ab * magnitude_cd);
     // inverse, in degrees
-    cos_theta.acos().to_degrees()
+    cos_theta.abs().acos().to_degrees()
 }
 
 fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
