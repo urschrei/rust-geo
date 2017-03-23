@@ -27,14 +27,33 @@ fn min_max<T>(mut hull: &mut [Point<T>]) -> (Point<T>, Point<T>, Point<T>, Point
         if point.y() > ymax.y() {
             mem::swap(point, ymax);
         }
-        if point.x() > xmax.x() {
-            mem::swap(point, &mut xmax);
-        }
         if point.x() < xmin.x() {
             mem::swap(point, &mut xmin);
         }
+        if point.x() > xmax.x() {
+            mem::swap(point, &mut xmax);
+        }
     }
     (*ymin, *ymax, *xmin, *xmax)
+}
+
+// return the vector angle in degrees of two vectors ab and cd
+fn vector_angle<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>, d: &Point<T>) -> T
+    where T: Float + Debug
+{
+    // vector by initial and terminal points
+    let ab = Point::new(b.x() - a.x(), b.y() - a.y());
+    let cd = Point::new(d.x() - c.x(), d.y() - c.y());
+
+    let product = ab.dot(&cd);
+
+    // magnitudes
+    let magnitude_ab = (ab.x().powi(2) + ab.y().powi(2)).sqrt();
+    let magnitude_cd = (cd.x().powi(2) + cd.y().powi(2)).sqrt();
+
+    let cos_theta = ab.dot(&cd) / (magnitude_ab * magnitude_cd);
+    // inverse, in degrees
+    cos_theta.acos().to_degrees()
 }
 
 fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
@@ -58,13 +77,30 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
                                       Point::new(poly2_xmax.x(), poly2_ymax.y())]);
     // initial minimum distance
     let mut mindist = poly1_ymin.distance(&poly2_ymax);
+    let lower_angle = vector_angle(
+        &poly1_ymin,
+        &Point::new(poly1_xmin.x(), poly1_ymin.y()),
+        &poly1_ymin,
+        &poly2_ymax
+    );
+    let upper_angle = vector_angle(
+        &poly2_ymax,
+        &Point::new(poly2_xmax.x(), poly2_ymax.y()),
+        &poly2_ymax,
+        &poly1_ymin
+    );
+
     println!("poly 1 min Y: {:?}", poly1_ymin.y());
+    println!("poly 1 min Y, x component: {:?}", poly1_ymin.x());
     println!("poly 2 max Y: {:?}", poly2_ymax.y());
+    println!("poly 2 max Y, x component: {:?}", poly2_ymax.x());
     println!("poly 1 min X: {:?}", poly1_xmin);
     println!("poly 2 max X: {:?}", poly2_xmax);
     println!("Bottom support (r to l: {:?}", lpoly_1);
     println!("Top support (l to r): {:?}", lpoly_2);
     println!("Minimum distance: {:?}", mindist);
+    println!("Lower Angle: {:?}", lower_angle);
+    println!("Upper Angle: {:?}", upper_angle);
 
     // 1.  We want poly1_min.y(), and poly2_max.y()
     // 2.  Construct two lines of support, parallel to the x axis – LP and LQ –
@@ -104,8 +140,8 @@ mod test {
         let mut points = points_raw.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
         let poly1 = Polygon::new(LineString(points), vec![]);
 
-        let points_raw_2 = vec![(8., 1.), (7., 2.), (7., 3.), (8., 4.), (9., 4.), (10., 3.),
-                                (10., 2.), (9., 1.), (8., 1.)];
+        let points_raw_2 = vec![(10., 1.), (9., 2.), (9., 3.), (10., 4.), (11., 4.),
+                                (12., 3.),(12., 2.), (11., 1.), (10., 1.)];
         let mut points2 = points_raw_2.iter().map(|e| Point::new(e.0, e.1)).collect::<Vec<_>>();
         let poly2 = Polygon::new(LineString(points2), vec![]);
         let dist = min_polygon_distance(poly1.convex_hull(), poly2.convex_hull());
