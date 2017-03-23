@@ -48,14 +48,15 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     let (poly2_ymin, poly2_ymax, poly2_xmin, poly2_xmax) = min_max(&mut poly2_hull);
 
     // lines of support must be parallel to the x axis
-    // lpoly1 must have poly1 to its right
-    // lpoly2 must have poly2 to its right
+    // lower support tangent to poly1, which must lie to its right
     let mut lpoly_1 = LineString(vec![Point::new(poly1_xmax.x(), poly1_ymin.y()),
                                       Point::new(poly1_ymin.x(), poly1_ymin.y()),
                                       Point::new(poly1_xmin.x(), poly1_ymin.y())]);
+    // upper support tangent to poly2, which must lie to its right
     let mut lpoly_2 = LineString(vec![Point::new(poly2_xmin.x(), poly2_ymax.y()),
                                       Point::new(poly2_ymax.x(), poly2_ymax.y()),
                                       Point::new(poly2_xmax.x(), poly2_ymax.y())]);
+    // initial minimum distance
     let mut mindist = poly1_ymin.distance(&poly2_ymax);
     println!("poly 1 min Y: {:?}", poly1_ymin.y());
     println!("poly 2 max Y: {:?}", poly2_ymax.y());
