@@ -9,6 +9,26 @@ use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partiti
 use algorithm::convexhull::ConvexHull;
 use algorithm::distance::Distance;
 
+// factory function for rotation matrices
+fn rotation_matrix<T>(angle: T, origin: &Point<T>) -> Box<Fn(&[Point<T>]) -> Vec<Point<T>>>
+    where T: 'static + Float + Debug
+{
+    let cos_theta = angle.cos();
+    let sin_theta = angle.sin();
+    let x_0 = origin.x();
+    let y_0 = origin.y();
+    Box::new(move |slice| {
+        slice.iter()
+            .map(|point| {
+                     let x_trans = point.x() - x_0;
+                     let y_trans = point.y() - y_0;
+                     Point::new(x_trans * cos_theta - y_trans * sin_theta + x_0,
+                                x_trans * sin_theta + y_trans * cos_theta + y_0)
+                 })
+            .collect::<Vec<_>>()
+    })
+}
+
 // calculate max and min polygon points
 fn min_max<T>(mut hull: &mut [Point<T>]) -> (Point<T>, Point<T>, Point<T>, Point<T>)
     where T: Float
@@ -77,18 +97,14 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
                                       Point::new(poly2_xmax.x(), poly2_ymax.y())]);
     // initial minimum distance
     let mut mindist = poly1_ymin.distance(&poly2_ymax);
-    let lower_angle = vector_angle(
-        &poly1_ymin,
-        &Point::new(poly1_xmin.x(), poly1_ymin.y()),
-        &poly1_ymin,
-        &poly2_ymax
-    );
-    let upper_angle = vector_angle(
-        &poly2_ymax,
-        &Point::new(poly2_xmax.x(), poly2_ymax.y()),
-        &poly2_ymax,
-        &poly1_ymin
-    );
+    let lower_angle = vector_angle(&poly1_ymin,
+                                   &Point::new(poly1_xmin.x(), poly1_ymin.y()),
+                                   &poly1_ymin,
+                                   &poly2_ymax);
+    let upper_angle = vector_angle(&poly2_ymax,
+                                   &Point::new(poly2_xmax.x(), poly2_ymax.y()),
+                                   &poly2_ymax,
+                                   &poly1_ymin);
 
     println!("poly 1 min Y: {:?}", poly1_ymin.y());
     println!("poly 1 min Y, x component: {:?}", poly1_ymin.x());
@@ -102,6 +118,10 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     println!("Lower Angle: {:?}", lower_angle);
     println!("Upper Angle: {:?}", upper_angle);
     println!("Minimum: {:?}", lower_angle.min(upper_angle));
+
+    let rotate = rotation_matrix(45.0, &poly1_ymin);
+    let rotated = rotate(&lpoly_1.0);
+    println!("Rotated: {:?}", rotated);
 
     // 1.  We want poly1_min.y(), and poly2_max.y()
     // 2.  Construct two lines of support, parallel to the x axis – LP and LQ –
