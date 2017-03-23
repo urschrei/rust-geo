@@ -7,6 +7,7 @@ use std::fmt::Debug;
 use std::mem;
 use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partition, point_location};
 use algorithm::convexhull::ConvexHull;
+use algorithm::distance::Distance;
 
 // calculate max and min polygon points
 fn min_max<T>(mut hull: &mut [Point<T>]) -> (Point<T>, Point<T>, Point<T>, Point<T>)
@@ -55,13 +56,14 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     let mut lpoly_2 = LineString(vec![Point::new(poly2_xmin.x(), poly2_ymax.y()),
                                       Point::new(poly2_ymax.x(), poly2_ymax.y()),
                                       Point::new(poly2_xmax.x(), poly2_ymax.y())]);
-
+    let mut mindist = poly1_ymin.distance(&poly2_ymax);
     println!("poly 1 min Y: {:?}", poly1_ymin.y());
     println!("poly 2 max Y: {:?}", poly2_ymax.y());
     println!("poly 1 min X: {:?}", poly1_xmin);
     println!("poly 2 max X: {:?}", poly2_xmax);
     println!("Bottom support (r to l: {:?}", lpoly_1);
     println!("Top support (l to r): {:?}", lpoly_2);
+    println!("Minimum distance: {:?}", mindist);
 
     // 1.  We want poly1_min.y(), and poly2_max.y()
     // 2.  Construct two lines of support, parallel to the x axis – LP and LQ –
