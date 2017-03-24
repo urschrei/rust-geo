@@ -217,6 +217,24 @@ impl<T, G> ExtremePoints<T> for G
     }
 }
 
+impl<T> ExtremePoints<T> for MultiPolygon<T>
+    where T: Float
+{
+    fn extreme_points(&self, convex: bool, oriented: bool) -> Extremes {
+        // we can disregard the input because convex-hull processing always orients
+        find_extremes(polymax_naive, &self.convex_hull(), true, true)
+    }
+}
+
+impl<T> ExtremePoints<T> for MultiPoint<T>
+    where T: Float
+{
+    fn extreme_points(&self, convex: bool, oriented: bool) -> Extremes {
+        // we can disregard the input because convex-hull processing always orients
+        find_extremes(polymax_naive, &self.convex_hull(), true, true)
+    }
+}
+
 #[cfg(test)]
 mod test {
 
@@ -289,6 +307,8 @@ mod test {
         // convex, with a bump on the top-right edge
         let points_raw =
             vec![(1.0, 0.0), (2.0, 1.0), (1.75, 1.75), (1.0, 2.0), (0.0, 1.0), (1.0, 0.0)];
+        // orient the vector clockwise
+        points_raw.reverse();
         let points = points_raw
             .iter()
             .map(|e| Point::new(e.0, e.1))

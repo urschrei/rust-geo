@@ -15,7 +15,8 @@ pub static COORD_PRECISION: f32 = 1e-1; // 0.1m
 
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Coordinate<T>
-    where T: Float
+where
+    T: Float,
 {
     pub x: T,
     pub y: T,
@@ -29,7 +30,8 @@ impl<T: Float> From<(T, T)> for Coordinate<T> {
 
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Bbox<T>
-    where T: Float
+where
+    T: Float,
 {
     pub xmin: T,
     pub xmax: T,
@@ -56,10 +58,11 @@ impl From<Vec<usize>> for Extremes {
     }
 }
 
-#[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+
 pub struct ExtremePoint<T>
-    where T: Float
- {
+where
+    T: Float,
+{
     pub ymin: Point<T>,
     pub xmax: Point<T>,
     pub ymax: Point<T>,
@@ -77,7 +80,9 @@ pub struct ExtremePoint<T>
 /// let p2: Point<f64> = c.into();
 /// ```
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Point<T> (pub Coordinate<T>) where T: Float;
+pub struct Point<T>(pub Coordinate<T>)
+where
+    T: Float;
 
 impl<T: Float> From<Coordinate<T>> for Point<T> {
     fn from(x: Coordinate<T>) -> Point<T> {
@@ -92,7 +97,8 @@ impl<T: Float> From<(T, T)> for Point<T> {
 }
 
 impl<T> Point<T>
-    where T: Float + ToPrimitive
+where
+    T: Float + ToPrimitive,
 {
     /// Creates a new point.
     ///
@@ -235,7 +241,8 @@ impl<T> Point<T>
 }
 
 impl<T> Neg for Point<T>
-    where T: Float + Neg<Output = T> + ToPrimitive
+where
+    T: Float + Neg<Output = T> + ToPrimitive,
 {
     type Output = Point<T>;
 
@@ -255,7 +262,8 @@ impl<T> Neg for Point<T>
 }
 
 impl<T> Add for Point<T>
-    where T: Float + ToPrimitive
+where
+    T: Float + ToPrimitive,
 {
     type Output = Point<T>;
 
@@ -275,7 +283,8 @@ impl<T> Add for Point<T>
 }
 
 impl<T> Sub for Point<T>
-    where T: Float + ToPrimitive
+where
+    T: Float + ToPrimitive,
 {
     type Output = Point<T>;
 
@@ -323,7 +332,8 @@ impl<T> PointN for Point<T>
 }
 
 impl<T> Add for Bbox<T>
-    where T: Float + ToPrimitive
+where
+    T: Float + ToPrimitive,
 {
     type Output = Bbox<T>;
 
@@ -342,17 +352,34 @@ impl<T> Add for Bbox<T>
     /// assert_eq!(1000., bbox.ymax);
     /// ```
     fn add(self, rhs: Bbox<T>) -> Bbox<T> {
-        Bbox{
-            xmin: if self.xmin <= rhs.xmin {self.xmin} else {rhs.xmin},
-            xmax: if self.xmax >= rhs.xmax {self.xmax} else {rhs.xmax},
-            ymin: if self.ymin <= rhs.ymin {self.ymin} else {rhs.ymin},
-            ymax: if self.ymax >= rhs.ymax {self.ymax} else {rhs.ymax},
+        Bbox {
+            xmin: if self.xmin <= rhs.xmin {
+                self.xmin
+            } else {
+                rhs.xmin
+            },
+            xmax: if self.xmax >= rhs.xmax {
+                self.xmax
+            } else {
+                rhs.xmax
+            },
+            ymin: if self.ymin <= rhs.ymin {
+                self.ymin
+            } else {
+                rhs.ymin
+            },
+            ymax: if self.ymax >= rhs.ymax {
+                self.ymax
+            } else {
+                rhs.ymax
+            },
         }
     }
 }
 
 impl<T> AddAssign for Bbox<T>
-    where T: Float + ToPrimitive
+where
+    T: Float + ToPrimitive,
 {
     /// Add a BoundingBox to the given BoundingBox.
     ///
@@ -368,11 +395,27 @@ impl<T> AddAssign for Bbox<T>
     /// assert_eq!(10., bbox0.ymin);
     /// assert_eq!(1000., bbox0.ymax);
     /// ```
-    fn add_assign(&mut self, rhs: Bbox<T>){
-        self.xmin = if self.xmin <= rhs.xmin {self.xmin} else {rhs.xmin};
-        self.xmax = if self.xmax >= rhs.xmax {self.xmax} else {rhs.xmax};
-        self.ymin = if self.ymin <= rhs.ymin {self.ymin} else {rhs.ymin};
-        self.ymax = if self.ymax >= rhs.ymax {self.ymax} else {rhs.ymax};
+    fn add_assign(&mut self, rhs: Bbox<T>) {
+        self.xmin = if self.xmin <= rhs.xmin {
+            self.xmin
+        } else {
+            rhs.xmin
+        };
+        self.xmax = if self.xmax >= rhs.xmax {
+            self.xmax
+        } else {
+            rhs.xmax
+        };
+        self.ymin = if self.ymin <= rhs.ymin {
+            self.ymin
+        } else {
+            rhs.ymin
+        };
+        self.ymax = if self.ymax >= rhs.ymax {
+            self.ymax
+        } else {
+            rhs.ymax
+        };
     }
 }
 
@@ -389,7 +432,9 @@ impl<T> AddAssign for Bbox<T>
 /// }
 /// ```
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub struct MultiPoint<T>(pub Vec<Point<T>>) where T: Float;
+pub struct MultiPoint<T>(pub Vec<Point<T>>)
+where
+    T: Float;
 
 impl<T: Float, IP: Into<Point<T>>> From<IP> for MultiPoint<T> {
     /// Convert a single `Point` (or something which can be converted to a `Point`) into a
@@ -426,14 +471,16 @@ impl<T: Float> IntoIterator for MultiPoint<T> {
 
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Line<T>
-    where T: Float
+where
+    T: Float,
 {
     pub start: Point<T>,
-    pub end: Point<T>
+    pub end: Point<T>,
 }
 
 impl<T> Line<T>
-    where T: Float
+where
+    T: Float,
 {
     /// Creates a new line segment.
     ///
@@ -446,7 +493,10 @@ impl<T> Line<T>
     /// assert_eq!(line.end, Point::new(1., 2.));
     /// ```
     pub fn new(start: Point<T>, end: Point<T>) -> Line<T> {
-        Line {start: start, end: end}
+        Line {
+            start: start,
+            end: end,
+        }
     }
 }
 
@@ -485,7 +535,9 @@ impl<T> Line<T>
 /// ```
 ///
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub struct LineString<T>(pub Vec<Point<T>>) where T: Float;
+pub struct LineString<T>(pub Vec<Point<T>>)
+where
+    T: Float;
 
 impl<T: Float> LineString<T> {
     /// Return an `Line` iterator that yields one `Line` for each line segment
@@ -552,7 +604,9 @@ impl<T: Float> IntoIterator for LineString<T> {
 ///
 /// Iterating over this objects, yields the component LineStrings.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub struct MultiLineString<T>(pub Vec<LineString<T>>) where T: Float;
+pub struct MultiLineString<T>(pub Vec<LineString<T>>)
+where
+    T: Float;
 
 impl<T: Float, ILS: Into<LineString<T>>> From<ILS> for MultiLineString<T> {
     fn from(ls: ILS) -> Self {
@@ -580,14 +634,16 @@ impl<T: Float> IntoIterator for MultiLineString<T> {
 /// It has one exterior ring, and zero or more interior rings.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Polygon<T>
-    where T: Float
+where
+    T: Float,
 {
     pub exterior: LineString<T>,
-    pub interiors: Vec<LineString<T>>
+    pub interiors: Vec<LineString<T>>,
 }
 
 impl<T> Polygon<T>
-    where T: Float
+where
+    T: Float,
 {
     /// Creates a new polygon.
     ///
@@ -603,7 +659,10 @@ impl<T> Polygon<T>
     /// assert_eq!(p.interiors, interiors);
     /// ```
     pub fn new(exterior: LineString<T>, interiors: Vec<LineString<T>>) -> Polygon<T> {
-        Polygon { exterior: exterior, interiors: interiors }
+        Polygon {
+            exterior: exterior,
+            interiors: interiors,
+        }
     }
 }
 
@@ -613,7 +672,9 @@ impl<T> Polygon<T>
 ///
 /// Iterating over this objects, yields the component Polygons.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub struct MultiPolygon<T>(pub Vec<Polygon<T>>) where T: Float;
+pub struct MultiPolygon<T>(pub Vec<Polygon<T>>)
+where
+    T: Float;
 
 impl<T: Float, IP: Into<Polygon<T>>> From<IP> for MultiPolygon<T> {
     fn from(x: IP) -> Self {
@@ -642,7 +703,9 @@ impl<T: Float> IntoIterator for MultiPolygon<T> {
 ///
 /// Iterating over this objects, yields the component Geometries.
 #[derive(PartialEq, Clone, Debug)]
-pub struct GeometryCollection<T>(pub Vec<Geometry<T>>) where T: Float;
+pub struct GeometryCollection<T>(pub Vec<Geometry<T>>)
+where
+    T: Float;
 
 impl<T: Float, IG: Into<Geometry<T>>> From<IG> for GeometryCollection<T> {
     fn from(x: IG) -> Self {
@@ -671,7 +734,8 @@ impl<T: Float> IntoIterator for GeometryCollection<T> {
 /// `std::convert::Into` pattern).
 #[derive(PartialEq, Clone, Debug)]
 pub enum Geometry<T>
-    where T: Float
+where
+    T: Float,
 {
     Point(Point<T>),
     LineString(LineString<T>),
@@ -679,7 +743,7 @@ pub enum Geometry<T>
     MultiPoint(MultiPoint<T>),
     MultiLineString(MultiLineString<T>),
     MultiPolygon(MultiPolygon<T>),
-    GeometryCollection(GeometryCollection<T>)
+    GeometryCollection(GeometryCollection<T>),
 }
 
 impl<T: Float> From<Point<T>> for Geometry<T> { fn from(x: Point<T>) -> Geometry<T> { Geometry::Point(x) } }
@@ -691,7 +755,7 @@ impl<T: Float> From<MultiPolygon<T>> for Geometry<T> { fn from(x: MultiPolygon<T
 
 #[cfg(test)]
 mod test {
-    use ::types::*;
+    use types::*;
 
     #[test]
     fn type_test() {
@@ -715,10 +779,20 @@ mod test {
 
     #[test]
     fn polygon_new_test() {
-        let exterior = LineString(vec![Point::new(0., 0.), Point::new(1., 1.),
-                                       Point::new(1., 0.), Point::new(0., 0.)]);
-        let interiors = vec![LineString(vec![Point::new(0.1, 0.1), Point::new(0.9, 0.9),
-                                             Point::new(0.9, 0.1), Point::new(0.1, 0.1)])];
+        let exterior = LineString(vec![
+            Point::new(0., 0.),
+            Point::new(1., 1.),
+            Point::new(1., 0.),
+            Point::new(0., 0.),
+        ]);
+        let interiors = vec![
+            LineString(vec![
+                Point::new(0.1, 0.1),
+                Point::new(0.9, 0.9),
+                Point::new(0.9, 0.1),
+                Point::new(0.1, 0.1),
+            ]),
+        ];
         let p = Polygon::new(exterior.clone(), interiors.clone());
 
         assert_eq!(p.exterior, exterior);
