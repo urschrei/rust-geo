@@ -64,6 +64,7 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     let mut poly1_hull = poly1.exterior.0.as_mut_slice();
     let mut poly2_hull = poly2.exterior.0.as_mut_slice();
 
+    // this is wrong, because it removes and jumbles vertices
     let (poly1_ymin, poly1_ymax, poly1_xmin, poly1_xmax) = min_max(&mut poly1_hull);
     let (poly2_ymin, poly2_ymax, poly2_xmin, poly2_xmax) = min_max(&mut poly2_hull);
 
