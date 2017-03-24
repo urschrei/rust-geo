@@ -8,24 +8,7 @@ use std::mem;
 use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partition, point_location};
 use algorithm::convexhull::ConvexHull;
 use algorithm::distance::Distance;
-
-fn rotation_matrix<T>(angle: T, origin: &Point<T>, points: &[Point<T>]) -> Vec<Point<T>>
-    where T: Float + Debug
-{
-    let cos_theta = angle.to_radians().cos();
-    let sin_theta = angle.to_radians().sin();
-    let x0 = origin.x();
-    let y0 = origin.y();
-    points.iter()
-        .map(|point| {
-                println!("Point: {:?}", point);
-                 let x = point.x() - x0;
-                 let y = point.y() - y0;
-                 Point::new(x * cos_theta - y * sin_theta + x0,
-                            x * sin_theta + y * cos_theta + y0)
-             })
-        .collect::<Vec<_>>()
-}
+use algorithm::rotate::Rotate;
 
 // calculate max and min polygon points
 fn min_max<T>(mut hull: &mut [Point<T>]) -> (Point<T>, Point<T>, Point<T>, Point<T>)
@@ -117,7 +100,7 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     println!("Upper Angle: {:?}", upper_angle);
     println!("Minimum: {:?}", lower_angle.min(upper_angle));
 
-    let rotated = rotation_matrix(T::from(-45.0).unwrap(), &poly1_ymin, lpoly_1.0.as_slice());
+    let rotated = lpoly_1.rotate(T::from(-45.0).unwrap(), &poly1_ymin);
     println!("Rotated: {:?}", rotated);
 
     // 1.  We want poly1_min.y(), and poly2_max.y()
