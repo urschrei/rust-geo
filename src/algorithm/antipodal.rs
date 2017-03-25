@@ -12,12 +12,16 @@ use algorithm::rotate::Rotate;
 
 // calculate max and min polygon points
 fn min_max<T>(mut hull: &mut [Point<T>]) -> (Point<T>, Point<T>, Point<T>, Point<T>)
-    where T: Float
+    where T: Float + Debug
 {
     let mut ymin = swap_remove_to_first(&mut hull, 0);
+    println!("{:?}", hull[0]);
     let mut ymax = swap_remove_to_first(&mut hull, 0);
+    println!("{:?}", hull[0]);
     let mut xmax = swap_remove_to_first(&mut hull, 0);
+    println!("{:?}", hull[0]);
     let mut xmin = swap_remove_to_first(&mut hull, 0);
+    println!("{:?}", hull[0]);
     if ymin.y() > ymax.y() {
         mem::swap(ymin, ymax);
     }
@@ -28,13 +32,15 @@ fn min_max<T>(mut hull: &mut [Point<T>]) -> (Point<T>, Point<T>, Point<T>, Point
         if point.y() > ymax.y() {
             mem::swap(point, ymax);
         }
-        if point.x() < xmin.x() {
-            mem::swap(point, &mut xmin);
-        }
-        if point.x() > xmax.x() {
-            mem::swap(point, &mut xmax);
-        }
     }
+    // for point in hull.iter_mut() {
+    //     if point.x() < xmin.x() {
+    //         mem::swap(point, &mut xmin);
+    //     }
+    //     if point.x() > xmax.x() {
+    //         mem::swap(point, &mut xmax);
+    //     }
+    // }
     (*ymin, *ymax, *xmin, *xmax)
 }
 
@@ -87,7 +93,7 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
                                    &Point::new(poly2_xmax.x(), poly2_ymax.y()),
                                    &poly2_ymax,
                                    &poly1_ymin);
-
+    println!("Poly 1 after extremes: {:?}", poly1_hull);
     println!("poly 1 min Y: {:?}", poly1_ymin.y());
     println!("poly 1 min Y, x component: {:?}", poly1_ymin.x());
     println!("poly 2 max Y: {:?}", poly2_ymax.y());
