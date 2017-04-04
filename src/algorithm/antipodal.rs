@@ -33,8 +33,8 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     where T: Float + Debug
 {
     // polygons must be convex
-    let mut poly1_hull = poly1.convex_hull().exterior.0.reverse();
-    let mut poly2_hull = poly2.convex_hull().exterior.0.reverse();
+    poly1.convex_hull().exterior.0.reverse();
+    poly2.convex_hull().exterior.0.reverse();
     println!("Poly 1 Hull: {:?}", poly1.exterior.0);
     println!("Poly 2 Hull {:?}", poly2.exterior.0);
     let (poly1_ymin, poly1_ymax, poly1_xmin, poly1_xmax) =
@@ -118,6 +118,8 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     T::from(3.0).unwrap()
 }
 
+
+// I'm not totally sure what this does ¯\_(ツ)_/¯
 fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
     where T: Float
 {
@@ -282,6 +284,72 @@ fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
                p.y() + T::from(100).unwrap() * sin)
 }
 
+fn unitpvector<T>(p: &Point<T>, u: &Point<T>) -> Point<T>
+    where T: Float
+{
+    let hundred = T::from(100).unwrap();
+    let vertical;
+    let mut slope;
+    let sperp;
+    slope = T::zero();
+    if p.x() == u.x() {
+        vertical = true;
+    } else {
+        vertical = false;
+    }
+    if !vertical {
+        if p.y() == u.y() {
+            slope = T::zero();
+        } else if u.x() > p.x() {
+            slope = (u.y() - p.y()) / (u.x() - p.x());
+        } else {
+            slope = (p.y() - u.y()) / (p.x() - u.x());
+        }
+    }
+    let upx;
+    let upy;
+    if vertical {
+        upy = p.y();
+        if u.y() > p.y() {
+            upx = p.x() + hundred;
+        } else {
+            upx = p.x() - hundred;
+        }
+        return Point::new(upx, upy);
+    } else {
+        // not vertical
+        if slope == T::zero() {
+            upx = p.x();
+            if u.x() > p.x() {
+                upy = p.y() - hundred;
+            } else {
+                upy = p.y() + hundred;
+            }
+            return Point::new(upx, upy);
+        } else {
+            // not special case
+            sperp = -T::one() / slope;
+            let tansq = sperp * sperp;
+            let cossq = T::one() / (T::one() + tansq);
+            let sinsq = T::one() - cossq;
+            let mut cos = cossq.sqrt();
+            let mut sin = sinsq.sqrt();
+            if u.x() > p.x() {
+                sin = -sin;
+                if slope < T::zero() {
+                    cos = -cos;
+                }
+            } else {
+                //u.x() < p.x()
+                if slope > T::zero() {
+                    cos = -cos;
+                }
+            }
+            Point::new(p.x() + hundred * cos, p.y() + hundred * sin)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use types::Point;
@@ -305,5 +373,18 @@ mod test {
         let poly2 = Polygon::new(LineString(points2), vec![]);
         let dist = min_polygon_distance(poly1.convex_hull(), poly2.convex_hull());
         assert_eq!(dist, 3.0);
+    }
+    #[test]
+    fn test_unitvector() {
+        let points_raw = vec![(5., 1.), (4., 2.), (4., 3.), (5., 4.), (6., 4.), (7., 3.),
+                              (7., 2.), (6., 1.), (5., 1.)];
+        let mut points = points_raw
+            .iter()
+            .map(|e| Point::new(e.0, e.1))
+            .collect::<Vec<_>>();
+        let poly1 = Polygon::new(LineString(points), vec![]);
+        let point = Point::new(6., 1.);
+        let uv = unitvector(45.0, &poly1, &point);
+        println!("Unit vector: {:?}", (uv.x(), uv.y()));
     }
 }
