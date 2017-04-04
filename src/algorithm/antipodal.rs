@@ -370,12 +370,10 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
                          .position(|&point| point == *p)
                          .unwrap() + polysize - 1) % polysize;
     let pprev: Point<T> = poly.exterior.0[pprev_idx];
-    // RCVertex punit;
-    // let mut punit = Point::new(T::zero(), T::zero());
     let mut slope = T::zero();
     let mut vertical = vert;
     let clockwise = true;
-    // DOES THIS ALWAYS GET OVERWRIITEN????????
+    // DOES THIS ALWAYS GET OVERWRITTEN????????
     let punit = Point::new(T::zero(), T::zero());
     if !vertical {
         slope = m;
@@ -384,6 +382,7 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     }
     if !vertical {
         let punit = unitvector(slope, poly, p);
+    // this branch can set punit = 0, 0 which is a logic error afaics
     } else {
         if clockwise {
             if p.x() > pprev.x() {
@@ -421,7 +420,6 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
             let punit = Point::new(T::zero(), T::zero());
         }
     }
-    // ??? triangle area
     let triarea = triangle_area(p, &punit, &pnext);
     let edgelen = p.distance(&pnext);
     let mut sine = triarea / (T::from(0.5).unwrap() * T::from(100).unwrap() * edgelen);
@@ -431,10 +429,9 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     if sine > T::one() {
         sine = T::one();
     }
-    let mut angle;
+    let angle;
     let perpunit = unitpvector(&p, &punit);
     let mut obtuse = false;
-    // ???
     let left = leftturn(p, &perpunit, &pnext);
     if clockwise {
         if left == 0 {
@@ -462,6 +459,7 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     angle
 }
 
+// self-explanatory
 fn triangle_area<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> T
     where T: Float
 {
@@ -470,6 +468,7 @@ fn triangle_area<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> T
       c.x() * b.y()))
 }
 
+// I mean sure
 fn leftturn<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> i8
     where T: Float
 {
