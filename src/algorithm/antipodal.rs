@@ -3,7 +3,7 @@
 // http://web.archive.org/web/20150330010154/http://cgm.cs.mcgill.ca/%7Eorm/rotcal.html
 use num_traits::Float;
 use num_traits::float::FloatConst;
-use types::{Point, Polygon};
+use types::{Point, LineString, Polygon};
 use std::fmt::Debug;
 // use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partition, point_location};
 use algorithm::convexhull::ConvexHull;
@@ -118,7 +118,6 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     T::from(3.0).unwrap()
 }
 
-// I'm not totally sure what this does ¯\_(ツ)_/¯
 fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
     where T: Float
 {
