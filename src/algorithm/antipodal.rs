@@ -3,9 +3,8 @@
 // http://web.archive.org/web/20150330010154/http://cgm.cs.mcgill.ca/%7Eorm/rotcal.html
 use num_traits::Float;
 use num_traits::float::FloatConst;
-use types::{Point, Polygon, MultiPolygon, LineString, MultiPoint, MultiLineString};
+use types::{Point, Polygon};
 use std::fmt::Debug;
-use std::mem;
 // use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partition, point_location};
 use algorithm::convexhull::ConvexHull;
 use algorithm::distance::Distance;
@@ -315,38 +314,32 @@ fn unitpvector<T>(p: &Point<T>, u: &Point<T>) -> Point<T>
         } else {
             upx = p.x() - hundred;
         }
-        return Point::new(upx, upy);
-    } else {
-        // not vertical
-        if slope == T::zero() {
-            upx = p.x();
-            if u.x() > p.x() {
-                upy = p.y() - hundred;
-            } else {
-                upy = p.y() + hundred;
-            }
-            return Point::new(upx, upy);
+        Point::new(upx, upy)
+    } else if slope == T::zero() {
+        upx = p.x();
+        if u.x() > p.x() {
+            upy = p.y() - hundred;
         } else {
-            // not special case
-            sperp = -T::one() / slope;
-            let tansq = sperp * sperp;
-            let cossq = T::one() / (T::one() + tansq);
-            let sinsq = T::one() - cossq;
-            let mut cos = cossq.sqrt();
-            let mut sin = sinsq.sqrt();
-            if u.x() > p.x() {
-                sin = -sin;
-                if slope < T::zero() {
-                    cos = -cos;
-                }
-            } else {
-                //u.x() < p.x()
-                if slope > T::zero() {
-                    cos = -cos;
-                }
-            }
-            Point::new(p.x() + hundred * cos, p.y() + hundred * sin)
+            upy = p.y() + hundred;
         }
+        Point::new(upx, upy)
+    } else {
+        // not special case
+        sperp = -T::one() / slope;
+        let tansq = sperp * sperp;
+        let cossq = T::one() / (T::one() + tansq);
+        let sinsq = T::one() - cossq;
+        let mut cos = cossq.sqrt();
+        let mut sin = sinsq.sqrt();
+        if u.x() > p.x() {
+            sin = -sin;
+            if slope < T::zero() {
+                cos = -cos;
+            }
+        } else if slope > T::zero() {
+            cos = -cos;
+        }
+        Point::new(p.x() + hundred * cos, p.y() + hundred * sin)
     }
 }
 
@@ -382,30 +375,12 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     }
     if !vertical {
         let punit = unitvector(slope, poly, p);
-    // this branch can set punit = 0, 0 which is a logic error afaics
-    } else {
-        if clockwise {
-            if p.x() > pprev.x() {
-                let punit = Point::new(p.x(), p.y() - hundred);
-            } else if p.x() < pprev.x() {
-                let punit = Point::new(p.x(), p.y() + hundred);
-            } else if p.x() == pprev.x() {
-                if p.y() > pprev.y() {
-                    let punit = Point::new(p.x(), p.y() + hundred);
-                } else if p.y() < pprev.y() {
-                    let punit = Point::new(p.x(), p.y() - hundred);
-                } else {
-                    // punit = None;
-                    let punit = Point::new(T::zero(), T::zero());
-                }
-            } else {
-                // punit = None;
-                let punit = Point::new(T::zero(), T::zero());
-            }
-        } else if p.x() > pprev.x() {
-            let punit = Point::new(p.x(), p.y() + hundred);
-        } else if p.x() < pprev.x() {
+    // this branch can set punit = 0, 0 or None, which is a logic error afaics
+    } else if clockwise {
+        if p.x() > pprev.x() {
             let punit = Point::new(p.x(), p.y() - hundred);
+        } else if p.x() < pprev.x() {
+            let punit = Point::new(p.x(), p.y() + hundred);
         } else if p.x() == pprev.x() {
             if p.y() > pprev.y() {
                 let punit = Point::new(p.x(), p.y() + hundred);
@@ -419,6 +394,22 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
             // punit = None;
             let punit = Point::new(T::zero(), T::zero());
         }
+    } else if p.x() > pprev.x() {
+        let punit = Point::new(p.x(), p.y() + hundred);
+    } else if p.x() < pprev.x() {
+        let punit = Point::new(p.x(), p.y() - hundred);
+    } else if p.x() == pprev.x() {
+        if p.y() > pprev.y() {
+            let punit = Point::new(p.x(), p.y() + hundred);
+        } else if p.y() < pprev.y() {
+            let punit = Point::new(p.x(), p.y() - hundred);
+        } else {
+            // punit = None;
+            let punit = Point::new(T::zero(), T::zero());
+        }
+    } else {
+        // punit = None;
+        let punit = Point::new(T::zero(), T::zero());
     }
     let triarea = triangle_area(p, &punit, &pnext);
     let edgelen = p.distance(&pnext);
@@ -430,7 +421,7 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
         sine = T::one();
     }
     let angle;
-    let perpunit = unitpvector(&p, &punit);
+    let perpunit = unitpvector(p, &punit);
     let mut obtuse = false;
     let left = leftturn(p, &perpunit, &pnext);
     if clockwise {
@@ -474,13 +465,11 @@ fn leftturn<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> i8
 {
     let narea = triangle_area(a, b, c);
     if narea > T::zero() {
-        return 1;
+        1
+    } else if narea < T::zero() {
+        0
     } else {
-        if narea < T::zero() {
-            return 0;
-        } else {
-            return -1;
-        }
+        -1
     }
 }
 
