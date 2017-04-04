@@ -5,7 +5,6 @@ use num_traits::Float;
 use num_traits::float::FloatConst;
 use types::{Point, LineString, Polygon};
 use std::fmt::Debug;
-// use algorithm::hull_helpers::{swap_remove_to_first, swap_remove_to_last, partition, point_location};
 use algorithm::convexhull::ConvexHull;
 use algorithm::distance::Distance;
 use algorithm::rotate::Rotate;
@@ -374,7 +373,10 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     }
     if !vertical {
         let punit = unitvector(slope, poly, p);
-    // this branch can set punit = 0, 0 or None, which is a logic error afaics
+    // this branch can set punit = None, which is a logic error at best
+    // triarea requires punit to have a value, but I don't think this pattern
+    // is irrefutable sooo I've fixed it for now with 0, 0
+    // which is still (almost certainly) wrong, but satisfies the compiler
     } else if clockwise {
         if p.x() > pprev.x() {
             let punit = Point::new(p.x(), p.y() - hundred);
@@ -393,6 +395,7 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
             // punit = None;
             let punit = Point::new(T::zero(), T::zero());
         }
+    // so like, not clockwise
     } else if p.x() > pprev.x() {
         let punit = Point::new(p.x(), p.y() + hundred);
     } else if p.x() < pprev.x() {
