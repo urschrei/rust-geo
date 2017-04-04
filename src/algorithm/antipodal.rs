@@ -37,8 +37,10 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     let mut poly2_hull = poly2.convex_hull().exterior.0.reverse();
     println!("Poly 1 Hull: {:?}", poly1.exterior.0);
     println!("Poly 2 Hull {:?}", poly2.exterior.0);
-    let (poly1_ymin, poly1_ymax, poly1_xmin, poly1_xmax) = (Point::new(6., 1.), Point::new(5., 4.), Point::new(4., 2.), Point::new(7., 3.));
-    let (poly2_ymin, poly2_ymax, poly2_xmin, poly2_xmax) = (Point::new(11., 1.), Point::new(10., 5.), Point::new(9., 2.), Point::new(12., 3.));
+    let (poly1_ymin, poly1_ymax, poly1_xmin, poly1_xmax) =
+        (Point::new(6., 1.), Point::new(5., 4.), Point::new(4., 2.), Point::new(7., 3.));
+    let (poly2_ymin, poly2_ymax, poly2_xmin, poly2_xmax) =
+        (Point::new(11., 1.), Point::new(10., 5.), Point::new(9., 2.), Point::new(12., 3.));
 
     // lines of support must be parallel to the x axis
     // lower support tangent to poly1, which must lie to its right
@@ -64,14 +66,14 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     let q_next = Point::new(12., 2.);
 
     let lower_next = vector_angle(&poly1_ymin,
-                                   &Point::new(poly1_xmin.x(), poly1_ymin.y()),
-                                   &poly1_ymin,
-                                   &p_next);
+                                  &Point::new(poly1_xmin.x(), poly1_ymin.y()),
+                                  &poly1_ymin,
+                                  &p_next);
 
     let upper_next = vector_angle(&poly2_ymax,
-                                   &Point::new(poly2_xmax.x(), poly2_ymax.y()),
-                                   &poly2_ymax,
-                                   &q_next);
+                                  &Point::new(poly2_xmax.x(), poly2_ymax.y()),
+                                  &poly2_ymax,
+                                  &q_next);
 
     println!("poly 1 min Y: {:?}", poly1_ymin.y());
     println!("poly 1 min Y, x component: {:?}", poly1_ymin.x());
@@ -114,6 +116,201 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     // 7. Return the minimum
 
     T::from(3.0).unwrap()
+}
+
+fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
+    where T: Float
+{
+    let clockwise = true;
+    let tansq = slope * slope;
+    let cossq = T::one() / (T::one() + tansq);
+    let sinsq = T::one() - cossq;
+    let mut cos = T::zero();
+    let mut sin = T::zero();
+    // not sure whether this is correct!
+    let polysize = poly.exterior.0.len();
+    // vertexAt((p.n + T::one())%polysize)
+    let pnext_idx = (poly.exterior
+                         .0
+                         .iter()
+                         .position(|&point| point == *p)
+                         .unwrap() + 1) % polysize;
+    let pnext: Point<T> = poly.exterior.0[pnext_idx];
+    // vertexAt((p.n + polysize - T::one())%polysize);
+    let pprev_idx = (poly.exterior
+                         .0
+                         .iter()
+                         .position(|&point| point == *p)
+                         .unwrap() + polysize - 1) % polysize;
+    let pprev: Point<T> = poly.exterior.0[pprev_idx];
+    if slope != T::zero() {
+        cos = cossq.sqrt();
+        sin = sinsq.sqrt();
+        if pnext.x() > p.x() {
+            if pprev.x() > p.x() {
+                if pprev.y() >= p.y() && pnext.y() >= p.y() {
+                    if slope > T::zero() {
+                        let (mut slprev, mut slnext) = (T::zero(), T::zero());
+                        slprev = (pprev.y() - p.y()) / (pprev.x() - p.x());
+                        slnext = (pnext.y() - p.y()) / (pnext.x() - p.x());
+                        if clockwise && slope <= slprev || !clockwise && slope >= slprev {
+                            cos = -cos;
+                            sin = -sin;
+                        }
+                    } else {
+                        //slope < T::zero()
+                        if clockwise {
+                            cos = -cos;
+                        } else {
+                            sin = -sin;
+                        }
+                    }
+                } else {
+                    if pprev.y() <= p.y() && pnext.y() <= p.y() {
+                        if slope > T::zero() {
+                            if !clockwise {
+                                cos = -cos;
+                                sin = -sin;
+                            }
+                        } else {
+                            let (mut slprev, mut slnext) = (T::zero(), T::zero());
+                            slprev = (pprev.y() - p.y()) / (pprev.x() - p.x());
+                            slnext = (pnext.y() - p.y()) / (pnext.x() - p.x());
+                            if clockwise {
+                                if slope <= slprev {
+                                    cos = -cos;
+                                } else {
+                                    sin = -sin;
+                                }
+                            } else {
+                                if slope <= slnext {
+                                    sin = -sin;
+                                } else {
+                                    cos = -cos;
+                                }
+                            }
+                        }
+                    } else {
+                        if slope > T::zero() {
+                            if !clockwise {
+                                cos = -cos;
+                                sin = -sin;
+                            }
+                        } else {
+                            if clockwise {
+                                cos = -cos;
+                            } else {
+                                sin = -sin;
+                            }
+                        }
+                    }
+                }
+            } else {
+                //pprev.x() <= p.x()
+                if slope < T::zero() {
+                    sin = -sin;
+                }
+            }
+        } else {
+            //pnext.x() <= p.x()
+            if pnext.x() < p.x() {
+                if pprev.x() < p.x() {
+                    if (pprev.y() >= p.y()) && (pnext.y() >= p.y()) {
+                        if slope > T::zero() {
+                            if clockwise {
+                                cos = -cos;
+                                sin = -sin;
+                            }
+                        } else {
+                            let (mut slprev, mut slnext) = (T::zero(), T::zero());
+                            slprev = (p.y() - pprev.y()) / (p.x() - pprev.x());
+                            slnext = (p.y() - pnext.y()) / (p.x() - pnext.x());
+                            if clockwise {
+                                if slope <= slprev {
+                                    sin = -sin;
+                                } else {
+                                    cos = -cos;
+                                }
+                            } else {
+                                if slope <= slnext {
+                                    cos = -cos;
+                                } else {
+                                    sin = -sin;
+                                }
+                            }
+                        }
+                    } else {
+                        if pprev.y() <= p.y() && pnext.y() <= p.y() {
+                            if slope > T::zero() {
+                                let (mut slprev, mut slnext) = (T::zero(), T::zero());
+                                slprev = (p.y() - pprev.y()) / (p.x() - pprev.x());
+                                slnext = (p.y() - pnext.y()) / (p.x() - pnext.x());
+                                if clockwise && slope >= slnext || !clockwise && slope >= slnext {
+                                    cos = -cos;
+                                    sin = -sin;
+                                }
+                            } else {
+                                if clockwise {
+                                    sin = -sin;
+                                } else {
+                                    cos = -cos;
+                                }
+                            }
+                        } else {
+                            if slope > T::zero() {
+                                if clockwise {
+                                    cos = -cos;
+                                    sin = -sin;
+                                }
+                            } else {
+                                if clockwise {
+                                    sin = -sin;
+                                } else {
+                                    cos = -cos;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    //pprev.x() >= p.x()
+                    cos = -cos;
+                    if slope > T::zero() {
+                        sin = -sin;
+                    }
+                }
+            } else {
+                //pnext.x() = p.x()
+                if pprev.x() > p.x() {
+                    cos = -cos;
+                    if slope > T::zero() {
+                        sin = -sin;
+                    }
+                } else {
+                    //pprev.x() < p.x() (can't be equal)
+                    if slope < T::zero() {
+                        sin = -sin;
+                    }
+                }
+            }
+        }
+    } else {
+        //slope is T::zero()
+        sin = T::zero();
+        if pnext.x() > p.x() {
+            cos = T::one();
+        } else if pnext.x() < p.x() {
+            cos = -T::one();
+        } else if pnext.x() == p.x() {
+            if pprev.x() < p.x() {
+                cos = T::one();
+            } else {
+                //pprev > p.x() (can't be equal)
+                cos = -T::one();
+            }
+        }
+    }
+    Point::new(p.x() + T::from(100).unwrap() * cos,
+               p.y() + T::from(100).unwrap() * sin)
 }
 
 #[cfg(test)]
