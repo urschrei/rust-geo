@@ -2,6 +2,7 @@
 // Available from: http://digitool.library.mcgill.ca/R/-?func=dbin-jump-full&object_id=21623&silo_library=GEN01
 // http://web.archive.org/web/20150330010154/http://cgm.cs.mcgill.ca/%7Eorm/rotcal.html
 use num_traits::Float;
+use num_traits::float::FloatConst;
 use types::{Point, Polygon, MultiPolygon, LineString, MultiPoint, MultiLineString};
 use std::fmt::Debug;
 use std::mem;
@@ -117,7 +118,6 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
 
     T::from(3.0).unwrap()
 }
-
 
 // I'm not totally sure what this does ¯\_(ツ)_/¯
 fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
@@ -346,6 +346,139 @@ fn unitpvector<T>(p: &Point<T>, u: &Point<T>) -> Point<T>
                 }
             }
             Point::new(p.x() + hundred * cos, p.y() + hundred * sin)
+        }
+    }
+}
+
+fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
+    where T: Float + FloatConst
+{
+    let hundred = T::from(100).unwrap();
+    // not sure whether this is correct!
+    let polysize = poly.exterior.0.len();
+    // vertexAt((p.n + T::one())%polysize)
+    let pnext_idx = (poly.exterior
+                         .0
+                         .iter()
+                         .position(|&point| point == *p)
+                         .unwrap() + 1) % polysize;
+    let pnext: Point<T> = poly.exterior.0[pnext_idx];
+    // vertexAt((p.n + polysize - T::one())%polysize);
+    let pprev_idx = (poly.exterior
+                         .0
+                         .iter()
+                         .position(|&point| point == *p)
+                         .unwrap() + polysize - 1) % polysize;
+    let pprev: Point<T> = poly.exterior.0[pprev_idx];
+    // RCVertex punit;
+    // let mut punit = Point::new(T::zero(), T::zero());
+    let mut slope = T::zero();
+    let mut vertical = vert;
+    let clockwise = true;
+    // DOES THIS ALWAYS GET OVERWRIITEN????????
+    let punit = Point::new(T::zero(), T::zero());
+    if !vertical {
+        slope = m;
+    } else {
+        vertical = true;
+    }
+    if !vertical {
+        let punit = unitvector(slope, poly, p);
+    } else {
+        if clockwise {
+            if p.x() > pprev.x() {
+                let punit = Point::new(p.x(), p.y() - hundred);
+            } else if p.x() < pprev.x() {
+                let punit = Point::new(p.x(), p.y() + hundred);
+            } else if p.x() == pprev.x() {
+                if p.y() > pprev.y() {
+                    let punit = Point::new(p.x(), p.y() + hundred);
+                } else if p.y() < pprev.y() {
+                    let punit = Point::new(p.x(), p.y() - hundred);
+                } else {
+                    // punit = None;
+                    let punit = Point::new(T::zero(), T::zero());
+                }
+            } else {
+                // punit = None;
+                let punit = Point::new(T::zero(), T::zero());
+            }
+        } else if p.x() > pprev.x() {
+            let punit = Point::new(p.x(), p.y() + hundred);
+        } else if p.x() < pprev.x() {
+            let punit = Point::new(p.x(), p.y() - hundred);
+        } else if p.x() == pprev.x() {
+            if p.y() > pprev.y() {
+                let punit = Point::new(p.x(), p.y() + hundred);
+            } else if p.y() < pprev.y() {
+                let punit = Point::new(p.x(), p.y() - hundred);
+            } else {
+                // punit = None;
+                let punit = Point::new(T::zero(), T::zero());
+            }
+        } else {
+            // punit = None;
+            let punit = Point::new(T::zero(), T::zero());
+        }
+    }
+    // ??? triangle area
+    let triarea = triangle_area(p, &punit, &pnext);
+    let edgelen = p.distance(&pnext);
+    let mut sine = triarea / (T::from(0.5).unwrap() * T::from(100).unwrap() * edgelen);
+    if sine < -T::one() {
+        sine = T::one();
+    }
+    if sine > T::one() {
+        sine = T::one();
+    }
+    let mut angle;
+    let perpunit = unitpvector(&p, &punit);
+    let mut obtuse = false;
+    // ???
+    let left = leftturn(p, &perpunit, &pnext);
+    if clockwise {
+        if left == 0 {
+            obtuse = true;
+        }
+        if left == -1 {
+            angle = T::PI() / (T::one() + T::one());
+        } else if !obtuse {
+            angle = (-sine).asin();
+        } else {
+            angle = T::PI() - (-sine).asin();
+        }
+    } else {
+        if left == 0 {
+            obtuse = true;
+        }
+        if left == -1 {
+            angle = T::PI() / (T::one() + T::one());
+        } else if !obtuse {
+            angle = sine.asin();
+        } else {
+            angle = T::PI() - sine.asin();
+        }
+    }
+    angle
+}
+
+fn triangle_area<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> T
+    where T: Float
+{
+    (T::from(0.5).unwrap() * (a.x() * b.y() - a.y() * b.x() + a.y() * c.x() - a.x() * c.y() + b.x() * c.y() - c.x() * b.y()))
+}
+
+fn leftturn<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> i8
+    where T: Float
+{
+    let narea = triangle_area(a, b, c);
+    if narea > T::zero() {
+        return 1;
+    } else {
+        if narea < T::zero() {
+            return 0;
+        } else {
+            return -1;
         }
     }
 }
