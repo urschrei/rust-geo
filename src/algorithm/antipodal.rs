@@ -465,7 +465,9 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
 fn triangle_area<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> T
     where T: Float
 {
-    (T::from(0.5).unwrap() * (a.x() * b.y() - a.y() * b.x() + a.y() * c.x() - a.x() * c.y() + b.x() * c.y() - c.x() * b.y()))
+    (T::from(0.5).unwrap() *
+     (a.x() * b.y() - a.y() * b.x() + a.y() * c.x() - a.x() * c.y() + b.x() * c.y() -
+      c.x() * b.y()))
 }
 
 fn leftturn<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> i8
