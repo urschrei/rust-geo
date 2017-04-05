@@ -147,6 +147,24 @@ impl<T> Polygon<T>
     }
 }
 
+// Minimum distance between a vertex and an imaginary line drawn from p to q
+// TODO: write a test
+impl<T> Point<T>
+    where T: Float
+{
+    fn vertex_line_distance(&self, p: &Point<T>, q: &Point<T>) -> T
+        where T: Float
+    {
+        let dpq = p.distance(q);
+        if dpq == T::zero() {
+            return T::zero();
+        }
+        ((self.x() * p.y() - self.y() * p.x() + self.y() * q.x() - self.x() * q.y() +
+          p.x() * q.y() - q.x() * p.y()))
+                .abs() / dpq
+    }
+}
+
 fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
     where T: Float
 {
