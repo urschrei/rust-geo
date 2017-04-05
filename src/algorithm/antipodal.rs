@@ -117,6 +117,24 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     T::from(3.0).unwrap()
 }
 
+// an antipodal vertex pair
+#[derive(Debug)]
+struct Rcpair<T>
+    where T: Float
+{
+    p: Point<T>,
+    q: Point<T>,
+}
+
+// an antipodal vertex-edge pair
+#[derive(Debug)]
+struct Rcvepair<T>
+    where T: Float
+{
+    v: Point<T>,
+    e: Rcpair<T>,
+}
+
 impl<T> Polygon<T>
     where T: Float
 {
@@ -177,19 +195,9 @@ fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
     // not sure whether this is correct!
     let polysize = poly.exterior.0.len();
     // vertexAt((p.n + T::one())%polysize)
-    let pnext_idx = (poly.exterior
-                         .0
-                         .iter()
-                         .position(|&point| point == *p)
-                         .unwrap() + 1) % polysize;
-    let pnext: Point<T> = poly.exterior.0[pnext_idx];
+    let pnext = poly.next_vertex(p);
     // vertexAt((p.n + polysize - T::one())%polysize);
-    let pprev_idx = (poly.exterior
-                         .0
-                         .iter()
-                         .position(|&point| point == *p)
-                         .unwrap() + polysize - 1) % polysize;
-    let pprev: Point<T> = poly.exterior.0[pprev_idx];
+    let pprev = poly.previous_vertex(p);
     if slope != T::zero() {
         cos = cossq.sqrt();
         sin = sinsq.sqrt();
@@ -396,19 +404,9 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     // not sure whether this is correct!
     let polysize = poly.exterior.0.len();
     // vertexAt((p.n + T::one())%polysize)
-    let pnext_idx = (poly.exterior
-                         .0
-                         .iter()
-                         .position(|&point| point == *p)
-                         .unwrap() + 1) % polysize;
-    let pnext: Point<T> = poly.exterior.0[pnext_idx];
+    let pnext = poly.next_vertex(p);
     // vertexAt((p.n + polysize - T::one())%polysize);
-    let pprev_idx = (poly.exterior
-                         .0
-                         .iter()
-                         .position(|&point| point == *p)
-                         .unwrap() + polysize - 1) % polysize;
-    let pprev: Point<T> = poly.exterior.0[pprev_idx];
+    let pprev = poly.previous_vertex(p);
     let mut slope = T::zero();
     let mut vertical = vert;
     let clockwise = true;
