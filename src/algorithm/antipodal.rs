@@ -117,6 +117,36 @@ fn min_polygon_distance<T>(mut poly1: Polygon<T>, mut poly2: Polygon<T>) -> T
     T::from(3.0).unwrap()
 }
 
+impl<T> Polygon<T>
+    where T: Float
+{
+    fn next_vertex(&self, p: &Point<T>) -> Point<T> {
+        let polysize = self.exterior.0.len();
+        let next_idx = (self.exterior
+                            .0
+                            .iter()
+                            .position(|&point| point == *p)
+                            .unwrap() + 1) % polysize;
+        self.exterior.0[next_idx]
+    }
+}
+
+impl<T> Polygon<T>
+    where T: Float
+{
+    fn previous_vertex(&self, p: &Point<T>) -> Point<T>
+        where T: Float
+    {
+        let polysize = self.exterior.0.len();
+        let previous_idx = (self.exterior
+                                .0
+                                .iter()
+                                .position(|&point| point == *p)
+                                .unwrap() - 1) % polysize;
+        self.exterior.0[previous_idx]
+    }
+}
+
 fn unitvector<T>(slope: T, poly: &Polygon<T>, p: &Point<T>) -> Point<T>
     where T: Float
 {
@@ -373,10 +403,10 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     }
     if !vertical {
         let punit = unitvector(slope, poly, p);
-    // this branch can set punit = None, which is a logic error at best
-    // triarea requires punit to have a value, but I don't think this pattern
-    // is irrefutable sooo I've fixed it for now with 0, 0
-    // which is still (almost certainly) wrong, but satisfies the compiler
+        // this branch can set punit = None, which is a logic error at best
+        // triarea requires punit to have a value, but I don't think this pattern
+        // is irrefutable sooo I've fixed it for now with 0, 0
+        // which is still (almost certainly) wrong, but satisfies the compiler
     } else if clockwise {
         if p.x() > pprev.x() {
             let punit = Point::new(p.x(), p.y() - hundred);
@@ -395,7 +425,7 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
             // punit = None;
             let punit = Point::new(T::zero(), T::zero());
         }
-    // so like, not clockwise
+        // so like, not clockwise
     } else if p.x() > pprev.x() {
         let punit = Point::new(p.x(), p.y() + hundred);
     } else if p.x() < pprev.x() {
@@ -511,5 +541,31 @@ mod test {
         let point = Point::new(6., 1.);
         let uv = unitvector(45.0, &poly1, &point);
         println!("Unit vector: {:?}", (uv.x(), uv.y()));
+    }
+    #[test]
+    fn test_next_vertex() {
+        let points_raw = vec![(5., 1.), (4., 2.), (4., 3.), (5., 4.), (6., 4.), (7., 3.),
+                              (7., 2.), (6., 1.), (5., 1.)];
+        let mut points = points_raw
+            .iter()
+            .map(|e| Point::new(e.0, e.1))
+            .collect::<Vec<_>>();
+        let poly1 = Polygon::new(LineString(points), vec![]);
+        let point = Point::new(5., 4.);
+        let pnext = poly1.next_vertex(&point);
+        assert_eq!(pnext, Point::new(6., 4.));
+    }
+    #[test]
+    fn test_previous_vertex() {
+        let points_raw = vec![(5., 1.), (4., 2.), (4., 3.), (5., 4.), (6., 4.), (7., 3.),
+                              (7., 2.), (6., 1.), (5., 1.)];
+        let mut points = points_raw
+            .iter()
+            .map(|e| Point::new(e.0, e.1))
+            .collect::<Vec<_>>();
+        let poly1 = Polygon::new(LineString(points), vec![]);
+        let point = Point::new(5., 4.);
+        let pnext = poly1.previous_vertex(&point);
+        assert_eq!(pnext, Point::new(4., 3.));
     }
 }
