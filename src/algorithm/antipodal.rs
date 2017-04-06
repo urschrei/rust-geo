@@ -135,6 +135,63 @@ struct Rcvepair<T>
     e: Rcpair<T>,
 }
 
+// RCPolygon poly1;
+// RCPolygon poly2;
+
+
+// RCVEPair minpair;
+// RCVEPair newminpair;
+// double dist;
+
+// RCCanvas canv;
+// int pid;
+// RCVertex main;
+// RCVertex ymin1, ymax1, ymin2, ymax2;
+// RCVertex p1, q2;
+// RCVertex p1next, q1next, p2next, q2next;
+// RCVertex p1prev, q1prev, p2prev, q2prev;
+// RCVertex cp1, cq1, cp2, cq2;
+
+// boolean ip1, iq2;
+// int iid;
+// double ap1, aq2;
+// int polysize1, polysize2;
+// boolean start;
+
+// distance-finding state
+#[derive(Debug)]
+struct Polydist<'a, T>
+    where T: Float, T: 'a
+{
+    poly1: &'a Polygon<T>,
+    poly2: &'a Polygon<T>,
+    minpair: &'a mut Rcvepair<T>,
+    newpair: &'a mut Rcvepair<T>,
+    dist: T,
+    pid: i32,
+    main: Point<T>,
+    ymin1: Point<T>,
+    ymax1: Point<T>,
+    ymin2: Point<T>,
+    ymax2: Point<T>,
+    p1: Point<T>,
+    q2: Point<T>,
+    p1next: Point<T>,
+    q1next: Point<T>,
+    p2next: Point<T>,
+    q2next: Point<T>,
+    p1prev: Point<T>,
+    q1prev: Point<T>,
+    p2prev: Point<T>,
+    q2prev: Point<T>,
+    iid: i32,
+    ap1: T,
+    aq2: T,
+    start: bool,
+    ip1: bool,
+    iq2: bool,
+}
+
 impl<T> Polygon<T>
     where T: Float
 {
