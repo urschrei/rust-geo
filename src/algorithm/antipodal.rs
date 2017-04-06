@@ -169,7 +169,7 @@ struct Polydist<'a, T>
     newpair: &'a mut Rcvepair<T>,
     dist: T,
     pid: i32,
-    main: Point<T>,
+    main: Option<Point<T>>,
     ymin1: Point<T>,
     ymax1: Point<T>,
     ymin2: Point<T>,
@@ -187,9 +187,11 @@ struct Polydist<'a, T>
     iid: i32,
     ap1: T,
     aq2: T,
-    start: bool,
+    start: Option<bool>,
     ip1: bool,
     iq2: bool,
+    slope: T,
+    vertical: bool
 }
 
 impl<T> Polygon<T>
@@ -454,7 +456,7 @@ fn unitpvector<T>(p: &Point<T>, u: &Point<T>) -> Point<T>
     }
 }
 
-fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
+fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: &T, vert: bool) -> T
     where T: Float + FloatConst
 {
     let hundred = T::from(100).unwrap();
@@ -470,7 +472,7 @@ fn vertexlineangle<T>(poly: &Polygon<T>, p: &Point<T>, m: T, vert: bool) -> T
     // DOES THIS ALWAYS GET OVERWRITTEN????????
     let punit = Point::new(T::zero(), T::zero());
     if !vertical {
-        slope = m;
+        slope = *m;
     } else {
         vertical = true;
     }
@@ -575,6 +577,88 @@ fn leftturn<T>(a: &Point<T>, b: &Point<T>, c: &Point<T>) -> i8
         0
     } else {
         -1
+    }
+}
+
+fn nextpoints<T>(state: &mut Polydist<T>)
+    where T: Float + FloatConst
+{
+    state.ap1 = vertexlineangle(&state.poly1, &state.p1, &state.slope, state.vertical);
+    state.aq2 = vertexlineangle(&state.poly2, &state.q2, &state.slope, state.vertical);
+    let minangle = state.ap1.min(state.aq2);
+    state.ip1 = false;
+    state.iq2 = false;
+    state.main = None;
+    state.iid = 0;
+    state.pid = 0;
+    // let p1next = p1prev = p1;
+    state.p1prev = state.p1;
+    state.p1next = state.p1prev;
+    // q2next = q2prev = q2;
+    state.q2prev = state.q2;
+    state.q2next = state.q2prev;
+    //System.out.println("Which point is main?");
+    if (state.ap1 - minangle).abs() < T::from(0.002).unwrap() {
+        state.ip1 = true;
+        state.p1next = state.poly1.next_vertex(&state.p1);
+        // ???
+        state.main = Some(state.p1next);
+        state.pid = 1;
+        state.iid += 1;
+    }
+    if (state.aq2 - minangle).abs() < T::from(0.002).unwrap() {
+        state.iq2 = true;
+        state.q2next = state.poly2.next_vertex(&state.q2);
+        match state.main {
+            None => {
+                state.main = Some(state.q2next);
+                state.pid = 2;
+            },
+            Some(_) => ()
+        }
+        state.iid += 2;
+    }
+    let oldslope = state.slope;
+    let oldvertical = state.vertical;
+    if state.ip1 {
+        if state.p1.x() == state.p1next.x() {
+            // Vertical case
+            state.vertical = true;
+            state.slope = T::zero(); //just to have a value
+        } else {
+            state.vertical = false;
+            if state.p1.x() > state.p1next.x() {
+                state.slope = (state.p1.y() - state.p1next.y()) / (state.p1.x() - state.p1next.x());
+            } else {
+                state.slope = (state.p1next.y() - state.p1.y()) / (state.p1next.x() - state.p1.x());
+            }
+        }
+    } else if state.iq2 {
+        if state.q2.x() == state.q2next.x() {
+            // Vertical case
+            state.vertical = true;
+            state.slope = T::zero();
+        } else {
+            state.vertical = false;
+            if state.q2.x() > state.q2next.x() {
+                state.slope = (state.q2.y() - state.q2next.y()) / (state.q2.x() - state.q2next.x());
+            } else {
+                state.slope = (state.q2next.y() - state.q2.y()) / (state.q2next.x() - state.q2.x());
+            }
+        }
+    }
+    // is start initially false???
+    if state.start.is_none() && state.p1 == state.ymin1 && state.q2 == state.ymax2 {
+    // if state.p1 == state.ymin1 && state.q2 == state.ymax2 && !start {
+        state.start = Some(false);
+        state.p1 = state.p1next;
+        state.q2 = state.q2next;
+    } else {
+        state.start = Some(true);
+        state.p1 = state.ymin1;
+        state.q2 = state.ymax2;
+        state.vertical = false;
+        state.slope = T::zero();
     }
 }
 
