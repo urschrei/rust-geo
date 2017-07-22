@@ -7,7 +7,8 @@ use types::{Point, LineString};
 // #[deriving] doesn't work inside functions.
 #[derive(PartialEq, Debug)]
 struct VScore<T>
-    where T: Float
+where
+    T: Float,
 {
     area: T,
     current: usize,
@@ -17,7 +18,8 @@ struct VScore<T>
 
 // These impls give us a min-heap
 impl<T> Ord for VScore<T>
-    where T: Float
+where
+    T: Float,
 {
     fn cmp(&self, other: &VScore<T>) -> Ordering {
         other.area.partial_cmp(&self.area).unwrap()
@@ -25,14 +27,19 @@ impl<T> Ord for VScore<T>
 }
 
 impl<T> PartialOrd for VScore<T>
-    where T: Float
+where
+    T: Float,
 {
     fn partial_cmp(&self, other: &VScore<T>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T> Eq for VScore<T> where T: Float {}
+impl<T> Eq for VScore<T>
+where
+    T: Float,
+{
+}
 
 // Simplify a line using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
 //
@@ -47,7 +54,8 @@ impl<T> Eq for VScore<T> where T: Float {}
 // It's OK to remove triangles with areas below the epsilon,
 // then recalculate the new triangle area and push it onto the heap
 fn visvalingam<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
-    where T: Float
+where
+    T: Float,
 {
     // No need to continue without at least three points
     if orig.len() < 3 || orig.is_empty() {
@@ -60,12 +68,10 @@ fn visvalingam<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
     // linked list with indices into `orig`. Big number (larger than or equal to
     // `max`) means no next element, and (0, 0) means deleted element.
     let mut adjacent: Vec<(_)> = (0..orig.len())
-        .map(|i| {
-            if i == 0 {
-                (-1_i32, 1_i32)
-            } else {
-                ((i - 1) as i32, (i + 1) as i32)
-            }
+        .map(|i| if i == 0 {
+            (-1_i32, 1_i32)
+        } else {
+            ((i - 1) as i32, (i + 1) as i32)
         })
         .collect();
 
@@ -118,8 +124,10 @@ fn visvalingam<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
                 continue;
             }
             let new_left = Point::new(orig[ai as usize].x(), orig[ai as usize].y());
-            let new_current = Point::new(orig[current_point as usize].x(),
-                                         orig[current_point as usize].y());
+            let new_current = Point::new(
+                orig[current_point as usize].x(),
+                orig[current_point as usize].y(),
+            );
             let new_right = Point::new(orig[bi as usize].x(), orig[bi as usize].y());
             pq.push(VScore {
                 area: area(&new_left, &new_current, &new_right),
@@ -132,16 +140,16 @@ fn visvalingam<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
     // Filter out the points that have been deleted, returning remaining points
     orig.iter()
         .zip(adjacent.iter())
-        .filter_map(|(tup, adj)| { if *adj != (0, 0) { Some(*tup) } else { None } })
+        .filter_map(|(tup, adj)| if *adj != (0, 0) { Some(*tup) } else { None })
         .collect::<Vec<Point<T>>>()
 }
 
 // Area of a triangle given three vertices
 fn area<T>(p1: &Point<T>, p2: &Point<T>, p3: &Point<T>) -> T
-    where T: Float
+where
+    T: Float,
 {
-    ((p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.y() - p3.y())).abs() /
-    (T::one() + T::one())
+    ((p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.y() - p3.y())).abs() / (T::one() + T::one())
 }
 
 pub trait SimplifyVW<T, Epsilon = T> {
@@ -168,11 +176,14 @@ pub trait SimplifyVW<T, Epsilon = T> {
     /// let simplified = linestring.simplifyvw(&30.0);
     /// assert_eq!(simplified, ls_compare)
     /// ```
-    fn simplifyvw(&self, epsilon: &T) -> Self where T: Float;
+    fn simplifyvw(&self, epsilon: &T) -> Self
+    where
+        T: Float;
 }
 
 impl<T> SimplifyVW<T> for LineString<T>
-    where T: Float
+where
+    T: Float,
 {
     fn simplifyvw(&self, epsilon: &T) -> LineString<T> {
         LineString(visvalingam(&self.0, epsilon))
@@ -187,7 +198,13 @@ mod test {
     #[test]
     fn visvalingam_test() {
         // this is the PostGIS example
-        let points = vec![(5.0, 2.0), (3.0, 8.0), (6.0, 20.0), (7.0, 25.0), (10.0, 10.0)];
+        let points = vec![
+            (5.0, 2.0),
+            (3.0, 8.0),
+            (6.0, 20.0),
+            (7.0, 25.0),
+            (10.0, 10.0),
+        ];
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e.0, e.1)).collect();
 
         let correct = vec![(5.0, 2.0), (7.0, 25.0), (10.0, 10.0)];
