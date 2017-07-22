@@ -82,10 +82,64 @@ where
     }
 }
 
+impl<T> Simplify<T> for Polygon<T>
+where
+    T: Float,
+{
+    fn simplify(&self, epsilon: &T) -> Polygon<T> {
+        Polygon::new(
+            self.exterior.simplify(epsilon),
+            self.interiors
+                .iter()
+                .map(|ls| ls.simplify(epsilon))
+                .collect(),
+        )
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use types::Point;
+    use types::{Point, LineString, Polygon};
     use super::{point_line_distance, rdp};
+    use algorithm::simplify::Simplify;
+
+    #[test]
+    fn polygon_simplification_test() {
+        let ls1 = LineString(vec![
+            Point::new(5.0, 1.0),
+            Point::new(4.0, 2.0),
+            Point::new(4.0, 3.0),
+            Point::new(5.0, 4.0),
+            Point::new(6.0, 4.0),
+            Point::new(7.0, 3.0),
+            Point::new(7.0, 2.0),
+            Point::new(6.0, 1.0),
+            Point::new(5.0, 1.0),
+        ]);
+
+        let ls2 = LineString(vec![
+            Point::new(5.0, 1.3),
+            Point::new(5.5, 2.0),
+            Point::new(6.0, 1.3),
+            Point::new(5.0, 1.3),
+        ]);
+
+        let correct_outside = vec![
+            (5.0, 1.0),
+            (4.0, 3.0),
+            (6.0, 4.0),
+            (7.0, 2.0),
+            (6.0, 1.0),
+            (5.0, 1.0),
+        ].iter()
+            .map(|e| Point::new(e.0, e.1))
+            .collect::<Vec<_>>();
+
+        let poly1 = Polygon::new(ls1, vec![ls2]);
+        let simplified = poly1.simplify(&0.45);
+
+        assert_eq!(simplified.exterior.0, correct_outside);
+    }
 
     #[test]
     fn perpdistance_test() {
