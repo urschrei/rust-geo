@@ -30,3 +30,5 @@ pub mod extremes;
 pub mod rotate;
 /// Translates a geometry along the given offsets.
 pub mod translate;
+/// Simplifies a Geometry using the radial distance algorithm. Preserves topology, but slower than RDP or VW
+pub mod simplify_radial;
