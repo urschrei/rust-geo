@@ -28,7 +28,7 @@ where
 // Radial-distance algorithm
 pub trait SimplifyRadial<T, Epsilon = T> {
     /// Returns the simplified representation of a Geometry, using a radial-distance pre-processing step  
-    /// This reduces overall quality and speed, but preserves topology.
+    /// This reduces the overall quality of representation, but is faster.
     ///
     /// ```
     /// use geo::{Point, LineString};
