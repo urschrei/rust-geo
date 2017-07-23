@@ -1,10 +1,11 @@
-use num_traits::{Float, ToPrimitive};
+use num_traits::Float;
 use types::{Point, LineString};
 use algorithm::distance::Distance;
+use algorithm::simplify::Simplify;
 
-fn radial_distance<T>(points: &[Point<T>], epsilon: T) -> Vec<Point<T>>
+fn radial_distance<T>(points: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
 where
-    T: Float + ToPrimitive,
+    T: Float
 {
     if points.is_empty() {
         return points.to_vec();
@@ -26,7 +27,8 @@ where
 
 // Radial-distance algorithm
 pub trait SimplifyRadial<T, Epsilon = T> {
-    /// Returns the simplified representation of a LineString, using the [Radial-Distance](radial-distance) algorithm
+    /// Returns the simplified representation of a LineString, using a radial-distance pre-processing step
+    /// This reduces overall quality and speed, but preserves topology.
     ///
     /// ```
     /// use geo::{Point, LineString};
@@ -45,30 +47,32 @@ pub trait SimplifyRadial<T, Epsilon = T> {
     /// compare.push(Point::new(11.0, 5.5));
     /// compare.push(Point::new(27.8, 0.1));
     /// let ls_compare = LineString(compare);
-    /// let simplified = linestring.simplify_radial(1.0);
+    /// let simplified = linestring.simplify_radial(&1.0);
     /// assert_eq!(simplified, ls_compare)
     /// ```
-    fn simplify_radial(&self, epsilon: T) -> Self
+    fn simplify_radial(&self, epsilon: &T) -> Self
     where
         T: Float;
 }
 
 impl<T> SimplifyRadial<T> for LineString<T>
 where
-    T: Float,
+    T: Float
 {
-    fn simplify_radial(&self, epsilon: T) -> LineString<T> {
-        LineString(radial_distance(&self.0, epsilon))
+    fn simplify_radial(&self, epsilon: &T) -> LineString<T> {
+        LineString(radial_distance(&self.0, epsilon)).simplify(&epsilon)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use types::Point;
+    use types::{Point, LineString};
+    use algorithm::simplify::Simplify;
     use super::radial_distance;
 
     #[test]
-    fn radial_distance_test() {
+    fn flibble() {
+        // test values stolen from simplify.js
         let points = vec![
             Point::new(224.55,250.15), Point::new(226.91,244.19), Point::new(233.31,241.45), Point::new(234.98,236.06),
             Point::new(244.21,232.76), Point::new(262.59,215.31), Point::new(267.76,213.81), Point::new(273.57,201.84),
@@ -107,16 +111,14 @@ mod test {
             Point::new(839.57,390.40), Point::new(848.40,407.55), Point::new(839.51,432.76), Point::new(853.97,471.15),
             Point::new(866.36,480.77)
         ];
-        let simplified = radial_distance(&points, 5.0);
-        let simp_len = simplified.len();
-        let correct_len = correct.len();
-        assert_eq!(simp_len, correct_len);
+        let simplified = LineString(radial_distance(&points, &5.0)).simplify(&5.0);
+        assert_eq!(simplified.0, correct);
     }
     #[test]
     fn radial_distance_test_empty_linestring() {
         let vec = Vec::new();
         let compare = Vec::new();
-        let simplified = radial_distance(&vec, 5.0);
+        let simplified = radial_distance(&vec, &5.0);
         assert_eq!(simplified, compare);
     }
     #[test]
@@ -127,7 +129,7 @@ mod test {
         let mut compare = Vec::new();
         compare.push(Point::new(0.0, 0.0));
         compare.push(Point::new(27.8, 0.1));
-        let simplified = radial_distance(&vec, 5.0);
+        let simplified = radial_distance(&vec, &5.0);
         assert_eq!(simplified, compare);
     }
 }
