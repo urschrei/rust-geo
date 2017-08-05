@@ -1,5 +1,5 @@
 use num_traits::Float;
-use types::{Point, LineString};
+use types::{Point, LineString, Polygon};
 use algorithm::distance::Distance;
 use algorithm::simplify::Simplify;
 
@@ -64,14 +64,30 @@ where
     }
 }
 
+impl<T> SimplifyRadial<T> for Polygon<T>
+where
+    T: Float,
+{
+    fn simplify_radial(&self, epsilon: &T) -> Polygon<T> {
+        Polygon::new(
+            self.exterior.simplify_radial(epsilon).simplify(epsilon),
+            self.interiors
+                .iter()
+                .map(|ls| ls.simplify_radial(epsilon).simplify(epsilon))
+                .collect(),
+        )
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use types::{Point, LineString};
+    use types::{Point, LineString, Polygon};
     use algorithm::simplify::Simplify;
+    use algorithm::simplify_radial::SimplifyRadial;
     use super::radial_distance;
 
     #[test]
-    fn flibble() {
+    fn test_radial() {
         // test values stolen from simplify.js
         let points = vec![
             Point::new(224.55,250.15), Point::new(226.91,244.19), Point::new(233.31,241.45), Point::new(234.98,236.06),
@@ -131,5 +147,42 @@ mod test {
         compare.push(Point::new(27.8, 0.1));
         let simplified = radial_distance(&vec, &5.0);
         assert_eq!(simplified, compare);
+    }
+    #[test]
+    fn polygon_simplification_test() {
+        let ls1 = LineString(vec![
+            Point::new(5.0, 1.0),
+            Point::new(4.0, 2.0),
+            Point::new(4.0, 3.0),
+            Point::new(5.0, 4.0),
+            Point::new(6.0, 4.0),
+            Point::new(7.0, 3.0),
+            Point::new(7.0, 2.0),
+            Point::new(6.0, 1.0),
+            Point::new(5.0, 1.0),
+        ]);
+
+        let ls2 = LineString(vec![
+            Point::new(5.0, 1.3),
+            Point::new(5.5, 2.0),
+            Point::new(6.0, 1.3),
+            Point::new(5.0, 1.3),
+        ]);
+
+        let correct_outside = vec![
+            (5.0, 1.0),
+            (4.0, 3.0),
+            (6.0, 4.0),
+            (7.0, 2.0),
+            (6.0, 1.0),
+            (5.0, 1.0),
+        ].iter()
+            .map(|e| Point::new(e.0, e.1))
+            .collect::<Vec<_>>();
+
+        let poly1 = Polygon::new(ls1, vec![ls2]);
+        let simplified = poly1.simplify_radial(&0.45);
+
+        assert_eq!(simplified.exterior.0, correct_outside);
     }
 }
