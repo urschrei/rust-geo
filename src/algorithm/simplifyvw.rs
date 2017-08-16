@@ -185,17 +185,15 @@ where
     // of 3 points and form triangles from them
     for (i, win) in orig.windows(3).enumerate() {
         let v = VScore {
-            area: area(win.first().unwrap(), &win[1], win.last().unwrap()),
+            area: area(&win[0], &win[1], &win[2]),
             current: i + 1,
             left: i,
             right: i + 2,
         };
         pq.push(v);
-    }
-    for win in orig.windows(2) {
-        // load all line segments into R-tree
-        let edge = SimpleEdge::new(win[0], win[1]);
-        tree.insert(edge);
+        // populate R* tree with line segments
+        tree.insert(SimpleEdge::new(win[0], win[1]));
+        tree.insert(SimpleEdge::new(win[1], win[2]));
     }
     // While there are still points for which the associated triangle
     // has an area below the epsilon
