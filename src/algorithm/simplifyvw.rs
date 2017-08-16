@@ -323,7 +323,7 @@ where
 ///
 /// Polygons are simplified by running the algorithm on all their constituent rings.  This may
 /// result in invalid Polygons, and has no guarantee of perserving topology.  Multi* objects are
-/// simplified by simplifyng all their constituent geometries individually.
+/// simplified by simplifying all their constituent geometries individually.
 pub trait SimplifyVW<T, Epsilon = T> {
     /// Returns the simplified representation of a geometry, using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
     ///
@@ -351,6 +351,60 @@ pub trait SimplifyVW<T, Epsilon = T> {
     fn simplifyvw(&self, epsilon: &T) -> Self
     where
         T: Float;
+}
+
+/// Simplifies a geometry, preserving its topology by removing self-intersections
+pub trait SimplifyVWPreserve<T, Epsilon = T> {
+    /// Returns the simplified representation of a geometry, using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
+    ///
+    /// See [here](https://www.jasondavies.com/simplify/) for a graphical explanation
+    ///
+    /// The topology-preserving algorithm uses an [R* tree](../../../spade/rtree/struct.RTree.html) to efficiently find candidate line segments
+    /// which are tested for intersection with a given triangle. If intersections are found,
+    /// the triangle is stored for later processing, and the next-largest area in the minimum
+    /// priority queue is chosen as the new epsilon.
+    ///
+    /// In the example below, `(135.0, 68.0)` would be retained by the standard algorithm,
+    /// thus causing a self-intersection when the given epsilon is used. By increasing the epsilon
+    /// to the area associated with that point, we ensure that it is removed, thus removing the self-intersection.
+    ///
+    /// ```
+    /// use geo::{Point, LineString};
+    /// use geo::algorithm::simplifyvw::{SimplifyVWPreserve};
+    ///
+    /// let mut vec = Vec::new();
+    /// vec.push(Point::new(10., 60.));
+    /// vec.push(Point::new(135., 68.));
+    /// vec.push(Point::new(94., 48.));
+    /// vec.push(Point::new(126., 31.));
+    /// vec.push(Point::new(280., 19.));
+    /// vec.push(Point::new(117., 48.));
+    /// vec.push(Point::new(300., 40.));
+    /// vec.push(Point::new(301., 10.));
+    /// let linestring = LineString(vec);
+    /// let mut compare = Vec::new();
+    /// compare.push(Point::new(10., 60.));
+    /// compare.push(Point::new(126., 31.));
+    /// compare.push(Point::new(280., 19.));
+    /// compare.push(Point::new(117., 48.));
+    /// compare.push(Point::new(300., 40.));
+    /// compare.push(Point::new(301., 10.));
+    /// let ls_compare = LineString(compare);
+    /// let simplified = linestring.simplifyvw_preserve(&668.6);
+    /// assert_eq!(simplified, ls_compare)
+    /// ```
+    fn simplifyvw_preserve(&self, epsilon: &T) -> Self
+    where
+        T: Float + SpadeFloat;
+}
+
+impl<T> SimplifyVWPreserve<T> for LineString<T>
+where
+    T: Float + SpadeFloat,
+{
+    fn simplifyvw_preserve(&self, epsilon: &T) -> LineString<T> {
+        LineString(visvalingam_preserve(&self.0, epsilon))
+    }
 }
 
 impl<T> SimplifyVW<T> for LineString<T>
