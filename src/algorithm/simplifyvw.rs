@@ -289,12 +289,12 @@ where
 }
 
 // check whether a triangle's edges intersect with any other edges of the LineString
-fn tree_intersect<T>(tree: &RTree<SimpleEdge<Point<T>>>, triangle: &VScore<T>, points: &[Point<T>]) -> bool
+fn tree_intersect<T>(tree: &RTree<SimpleEdge<Point<T>>>, triangle: &VScore<T>, orig: &[Point<T>]) -> bool
 where
     T: Float + SpadeFloat,
 {
-    let point_a = points[triangle.left];
-    let point_c = points[triangle.right];
+    let point_a = orig[triangle.left];
+    let point_c = orig[triangle.right];
     let candidates = tree.lookup_in_rectangle(&BoundingRect::from_corners(&point_a, &point_c));
     candidates
         .iter()
