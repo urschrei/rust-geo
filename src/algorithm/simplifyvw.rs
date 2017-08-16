@@ -14,11 +14,11 @@ use spade::rtree::RTree;
 struct VScore<T>
 where
     T: Float,
-{
-    area: T,
-    current: usize,
+{   
     left: usize,
+    current: usize,
     right: usize,
+    area: T,
 }
 
 // These impls give us a min-heap
@@ -208,6 +208,7 @@ where
             //  This triangle's area is below epsilon: eliminate the associated point
             Some(s) => s,
         };
+        println!("New candidate: {:?}", smallest);
         let (left, right) = adjacent[smallest.current];
         // A point in this triangle has been removed since this VScore
         // was created, so skip it
@@ -217,6 +218,7 @@ where
         // if removal of this point causes an intersection, save it for re-processing
         if tree_intersect(&tree, &mut smallest, orig) {
             // TODO: ensure that we're doing this at the correct point in the loop
+            // TODO: could we decrease the area of the next-largest triangle to epsilon instead? 
             // increase the minimum triangle area to the new epsilon
             internal_epsilon = pq.peek().unwrap().area;
             // increase area to new epsilon so we remove this triangle and the next-largest in order
@@ -421,7 +423,7 @@ mod test {
         assert_eq!(simplified, correct_ls);
     }
     #[test]
-    fn test_vw_self_intersection() {
+    fn quux() {
         // this LineString will have a self-intersection if the point with the
         // smallest associated area is removed
         // the associated triangle is (1, 2, 3), and has an area of 668.5
