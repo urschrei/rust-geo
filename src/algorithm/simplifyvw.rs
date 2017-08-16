@@ -208,7 +208,6 @@ where
             //  This triangle's area is below epsilon: eliminate the associated point
             Some(s) => s,
         };
-        println!("New candidate: {:?}", smallest);
         let (left, right) = adjacent[smallest.current];
         // A point in this triangle has been removed since this VScore
         // was created, so skip it
@@ -257,8 +256,8 @@ where
             };
             // we have to call this twice because only one segment is returned at a time
             // this should be OK because a point can only share at most two segments
-            tree.lookup_and_remove(&orig[smallest.current]);
-            tree.lookup_and_remove(&orig[smallest.current]);
+            tree.lookup_and_remove(&orig[smallest.right]);
+            tree.lookup_and_remove(&orig[smallest.left]);
             // add re-computed line segments to the tree
             let lc = SimpleEdge::new(orig[ai as usize], orig[current_point as usize]);
             let cr = SimpleEdge::new(orig[current_point as usize], orig[bi as usize]);
