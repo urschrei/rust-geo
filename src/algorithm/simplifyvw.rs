@@ -216,9 +216,10 @@ where
         }
         // if removal of this point causes an intersection, save it for re-processing
         if tree_intersect(&tree, &mut smallest, orig) {
-            // bump minimum area so we remove the triangle this one intersects with
+            // TODO: ensure that we're doing this at the correct point in the loop
+            // increase the minimum triangle area to the new epsilon
             internal_epsilon = pq.peek().unwrap().area;
-            // increase area to the new epsilon
+            // increase area to new epsilon so we remove this triangle and the next-largest in order
             smallest.area = internal_epsilon;
             &intersections.push(smallest);
             continue;
