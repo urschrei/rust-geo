@@ -14,7 +14,7 @@ use spade::rtree::RTree;
 struct VScore<T>
 where
     T: Float,
-{   
+{
     left: usize,
     current: usize,
     right: usize,
@@ -468,6 +468,13 @@ where
 mod test {
     use types::{Point, LineString, Polygon, MultiLineString, MultiPolygon};
     use super::{visvalingam, visvalingam_preserve, SimplifyVW};
+    use std::fs::File;
+    use std::io::{Write, BufWriter};
+    use num_traits::ToPrimitive;
+    extern crate serde_json;
+    use self::serde_json::{Map, to_value};
+    extern crate geojson;
+    use self::geojson::{Feature, GeoJson, Geometry, Value};
 
     #[test]
     fn visvalingam_test() {
@@ -527,8 +534,31 @@ mod test {
         let points = include!("test_fixtures/norway_main.rs");
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
         let simplified = visvalingam_preserve(&points_ls, &0.0005);
-        // println!("Simplified length: {:?}", simplified.len());
-        assert_eq!(simplified.len(), 4020);
+        // dump simplified geometry to GeoJSON so it can be checked for validity elsewhere
+        // let simplified_vec: Vec<Vec<f64>> = simplified
+        //     .iter()
+        //     .map(|point| {
+        //         vec![point.x().to_f64().unwrap(), point.y().to_f64().unwrap()]
+        //     })
+        //     .collect();
+        // let mut properties = Map::new();
+        // properties.insert(
+        //     String::from("name"),
+        //     to_value("Norway_VW_Decrease").unwrap(),
+        // );
+        // let geometry = Geometry::new(Value::Polygon(vec![simplified_vec]));
+        // let geojson = GeoJson::Feature(Feature {
+        //     bbox: None,
+        //     geometry: Some(geometry),
+        //     id: None,
+        //     properties: Some(properties),
+        //     foreign_members: None,
+        // });
+        // let geojson_string = geojson.to_string();
+        // let f = File::create("src/algorithm/test_fixtures/norway_reduced.geojson").unwrap();
+        // let mut bw = BufWriter::new(f);
+        // bw.write_all(geojson_string.as_bytes()).unwrap();
+        assert_eq!(simplified.len(), 3267);
     }
     #[test]
     fn visvalingam_test_long() {
