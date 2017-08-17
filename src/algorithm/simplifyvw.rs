@@ -523,6 +523,15 @@ mod test {
         assert_eq!(simplified, correct_ls);
     }
     #[test]
+    fn grim() {
+        // simplify a longer LineString, hopefully eliminating self-intersections
+        let points = include!("test_fixtures/norway_main.rs");
+        let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
+        let simplified = visvalingam_preserve(&points_ls, &0.0005);
+        // println!("Simplified length: {:?}", simplified.len());
+        assert_eq!(simplified.len(), 4020);
+    }
+    #[test]
     fn visvalingam_test_long() {
         // simplify a longer LineString
         let points = include!("test_fixtures/vw_orig.rs");
