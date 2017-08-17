@@ -8,8 +8,8 @@ use spade::primitives::SimpleEdge;
 use spade::BoundingRect;
 use spade::rtree::RTree;
 
-// A helper struct for `visvalingam`, defined out here because
-// #[deriving] doesn't work inside functions.
+// Store triangle information
+// current is the candidate point for removal
 #[derive(Debug)]
 struct VScore<T>
 where
@@ -70,6 +70,8 @@ where
 // However, this does *not* apply if you're using a user-defined epsilon;
 // It's OK to remove triangles with areas below the epsilon,
 // then recalculate the new triangle area and push it onto the heap
+// based on Huon Wilson's original implementation:
+// https://github.com/huonw/isrustfastyet/blob/25e7a68ff26673a8556b170d3c9af52e1c818288/mem/line_simplify.rs
 fn visvalingam<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
 where
     T: Float,
@@ -95,8 +97,8 @@ where
     // Store all the triangles in a minimum priority queue, based on their area.
     // Invalid triangles are *not* removed if / when points
     // are removed; they're handled by skipping them as
-    // necessary in the main loop. (This is handled by recording the
-    // state in the VScore)
+    // necessary in the main loop by checking the corresponding entry in
+    // adjacent for (0, 0) values
     let mut pq = BinaryHeap::new();
     // Compute the initial triangles, i.e. take all consecutive groups
     // of 3 points and form triangles from them
@@ -190,8 +192,8 @@ where
     // Store all the triangles in a minimum priority queue, based on their area.
     // Invalid triangles are *not* removed if / when points
     // are removed; they're handled by skipping them as
-    // necessary in the main loop. (This is handled by recording the
-    // state in the VScore)
+    // necessary in the main loop by checking the corresponding entry in
+    // adjacent for (0, 0) values
     let mut pq = BinaryHeap::new();
     let mut tree: RTree<SimpleEdge<_>> = RTree::new();
     // Compute the initial triangles, i.e. take all consecutive groups
