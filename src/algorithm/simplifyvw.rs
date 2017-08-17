@@ -10,7 +10,7 @@ use spade::rtree::RTree;
 
 // A helper struct for `visvalingam`, defined out here because
 // #[deriving] doesn't work inside functions.
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 struct VScore<T>
 where
     T: Float,
@@ -44,6 +44,18 @@ impl<T> Eq for VScore<T>
 where
     T: Float,
 {
+}
+
+impl<T> PartialEq for VScore<T>
+where
+    T: Float,
+{
+    fn eq(&self, other: &VScore<T>) -> bool
+    where
+        T: Float,
+    {
+        self.area == other.area
+    }
 }
 
 // Simplify a line using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
@@ -150,6 +162,7 @@ where
 }
 
 // Visvalingam with self-intersection detection to preserve topologies
+// this is a port of the technique at https://www.jasondavies.com/simplify/
 fn visvalingam_preserve<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
 where
     T: Float + SpadeFloat,
