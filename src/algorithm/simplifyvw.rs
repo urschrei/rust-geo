@@ -271,10 +271,8 @@ where
             tree.lookup_and_remove(&orig[smallest.right]);
             tree.lookup_and_remove(&orig[smallest.left]);
             // add re-computed line segments to the tree
-            let lc = SimpleEdge::new(orig[ai as usize], orig[current_point as usize]);
-            let cr = SimpleEdge::new(orig[current_point as usize], orig[bi as usize]);
-            tree.insert(lc);
-            tree.insert(cr);
+            tree.insert(SimpleEdge::new(orig[ai as usize], orig[current_point as usize]));
+            tree.insert(SimpleEdge::new(orig[current_point as usize], orig[bi as usize]));
             // push re-computed triangle onto heap
             pq.push(new_triangle);
         }
