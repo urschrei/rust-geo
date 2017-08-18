@@ -169,7 +169,6 @@ fn visvalingam_preserve<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
 where
     T: Float + SpadeFloat,
 {
-    let mut internal_epsilon = *epsilon;
     // No need to continue without at least three points
     if orig.len() < 3 || orig.is_empty() {
         return orig.to_vec();
@@ -217,7 +216,7 @@ where
             // We've exhausted all the possible triangles, so leave the main loop
             None => break,
             // This triangle's area is above epsilon, so skip it
-            Some(ref x) if x.area > internal_epsilon => continue,
+            Some(ref x) if x.area > *epsilon => continue,
             //  This triangle's area is below epsilon: eliminate the associated point
             Some(s) => s,
         };
@@ -233,7 +232,7 @@ where
             // decrease area of next-largest triangle in heap to epsilon
             // this means that we remove smallest and the next-largest in order
             let mut to_alter = pq.peek_mut().unwrap();
-            to_alter.area = internal_epsilon;
+            to_alter.area = *epsilon;
             &intersections.push(smallest);
             continue;
         }
@@ -243,6 +242,11 @@ where
         // We've got a valid triangle, and its area is smaller than epsilon, so
         // remove it from the simulated "linked list"
         adjacent[smallest.current as usize] = (0, 0);
+        // remove stale segments from R* tree
+        // we have to call this twice because only one segment is returned at a time
+        // this should be OK because a point can only share at most two segments
+        tree.lookup_and_remove(&orig[smallest.right]);
+        tree.lookup_and_remove(&orig[smallest.left]);
         // Now recompute the triangle area, using left and right adjacent points
         let (ll, _) = adjacent[left as usize];
         let (_, rr) = adjacent[right as usize];
@@ -266,10 +270,6 @@ where
                 left: ai as usize,
                 right: bi as usize,
             };
-            // we have to call this twice because only one segment is returned at a time
-            // this should be OK because a point can only share at most two segments
-            tree.lookup_and_remove(&orig[smallest.right]);
-            tree.lookup_and_remove(&orig[smallest.left]);
             // add re-computed line segments to the tree
             tree.insert(SimpleEdge::new(orig[ai as usize], orig[current_point as usize]));
             tree.insert(SimpleEdge::new(orig[current_point as usize], orig[bi as usize]));
