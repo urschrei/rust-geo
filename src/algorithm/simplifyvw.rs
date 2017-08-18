@@ -19,6 +19,7 @@ where
     current: usize,
     right: usize,
     area: T,
+    intersector: bool
 }
 
 // These impls give us a min-heap
@@ -108,6 +109,7 @@ where
             current: i + 1,
             left: i,
             right: i + 2,
+            intersector: false
         });
     }
     // While there are still points for which the associated triangle
@@ -135,7 +137,7 @@ where
         adjacent[right as usize] = (left, rr);
         adjacent[smallest.current as usize] = (0, 0);
 
-        // Now recompute the triangle area, using left and right adjacent points
+        // Now recompute the adjacent triangle(s), using left and right adjacent points
         let choices = [(ll, left, right), (left, right, rr)];
         for &(ai, current_point, bi) in &choices {
             if ai as usize >= max || bi as usize >= max {
@@ -153,6 +155,7 @@ where
                 current: current_point as usize,
                 left: ai as usize,
                 right: bi as usize,
+                intersector: false
             });
         }
     }
@@ -186,7 +189,7 @@ where
             ((i - 1) as i32, (i + 1) as i32)
         })
         .collect();
-    let mut intersections = vec![];
+    // let mut intersections = vec![];
 
     // Store all the triangles in a minimum priority queue, based on their area.
     // Invalid triangles are *not* removed if / when points
@@ -203,6 +206,7 @@ where
             current: i + 1,
             left: i,
             right: i + 2,
+            intersector: false
         };
         pq.push(v);
         // populate R* tree with line segments
@@ -226,19 +230,9 @@ where
         if left as i32 != smallest.left as i32 || right as i32 != smallest.right as i32 {
             continue;
         }
-        // if removal of this point causes an intersection, save it for re-processing
-        if tree_intersect(&tree, &mut smallest, orig) {
-            // TODO: ensure that we're doing this at the correct point in the loop
-            // decrease area of next-largest triangle in heap to epsilon
-            // this means that we remove smallest and the next-largest in order
-            let mut to_alter = pq.peek_mut().unwrap();
-            to_alter.area = *epsilon;
-            &intersections.push(smallest);
-            continue;
-        }
-        while !intersections.is_empty() {
-            pq.push(intersections.pop().unwrap());
-        }
+        // if removal of this point causes a self-intersection, we also remove the previous point
+        // that removal alters the geometry, removing the self-intersection
+        smallest.intersector = tree_intersect(&tree, &mut smallest, orig);
         // We've got a valid triangle, and its area is smaller than epsilon, so
         // remove it from the simulated "linked list"
         adjacent[smallest.current as usize] = (0, 0);
@@ -247,7 +241,7 @@ where
         // this should be OK because a point can only share at most two segments
         tree.lookup_and_remove(&orig[smallest.right]);
         tree.lookup_and_remove(&orig[smallest.left]);
-        // Now recompute the triangle area, using left and right adjacent points
+        // Now recompute the adjacent triangle(s), using left and right adjacent points
         let (ll, _) = adjacent[left as usize];
         let (_, rr) = adjacent[right as usize];
         adjacent[left as usize] = (ll, right);
@@ -264,11 +258,18 @@ where
                 orig[current_point as usize].y(),
             );
             let new_right = Point::new(orig[bi as usize].x(), orig[bi as usize].y());
+            // The current point causes a self-intersection, and this point precedes it
+            // we ensure it gets removed next by demoting its area to negative epsilon
+            let temp_area = match smallest.intersector && (current_point as usize) < smallest.current {
+                true => -*epsilon,
+                false => area(&new_left, &new_current, &new_right)
+            };
             let new_triangle = VScore {
-                area: area(&new_left, &new_current, &new_right),
+                area: temp_area,
                 current: current_point as usize,
                 left: ai as usize,
                 right: bi as usize,
+                intersector: false
             };
             // add re-computed line segments to the tree
             tree.insert(SimpleEdge::new(orig[ai as usize], orig[current_point as usize]));
@@ -556,7 +557,7 @@ mod test {
         // let f = File::create("src/algorithm/test_fixtures/norway_reduced.geojson").unwrap();
         // let mut bw = BufWriter::new(f);
         // bw.write_all(geojson_string.as_bytes()).unwrap();
-        assert_eq!(simplified.len(), 3267);
+        assert_eq!(simplified.len(), 3277);
     }
     #[test]
     fn visvalingam_test_long() {
