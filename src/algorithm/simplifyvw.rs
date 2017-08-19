@@ -195,6 +195,7 @@ where
         return orig.to_vec();
     }
     let max = orig.len();
+    let mut counter = orig.len();
 
     // Adjacent retained points. Simulating the points in a
     // linked list with indices into `orig`. Big number (larger than or equal to
@@ -240,6 +241,10 @@ where
             //  This triangle's area is below epsilon: eliminate the associated point
             Some(s) => s,
         };
+        if counter <= 3 {
+            // we need at least three points to form a ring
+            break;
+        }
         let (left, right) = adjacent[smallest.current];
         // A point in this triangle has been removed since this VScore
         // was created, so skip it
@@ -252,6 +257,7 @@ where
         // We've got a valid triangle, and its area is smaller than epsilon, so
         // remove it from the simulated "linked list"
         adjacent[smallest.current as usize] = (0, 0);
+        counter -= 1;
         // remove stale segments from R* tree
         // we have to call this twice because only one segment is returned at a time
         // this should be OK because a point can only share at most two segments
