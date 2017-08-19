@@ -241,7 +241,7 @@ where
             //  This triangle's area is below epsilon: eliminate the associated point
             Some(s) => s,
         };
-        if counter <= 3 {
+        if counter == 3 {
             // we need at least three points to form a ring
             break;
         }
@@ -454,10 +454,28 @@ where
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> Polygon<T> {
         let mut simplified = vwp_wrapper(&self.exterior.0, Some(&self.interiors), epsilon);
-        let exterior = LineString(simplified.pop().unwrap());
+        let mut exterior = LineString(simplified.pop().unwrap());
+        // If we bailed out of the simplification because we only had 3 points left
+        // we may need to close the ring
+        let first = exterior.0[0];
+        if &exterior.0[0] != exterior.0.last().unwrap() {
+            exterior.0.push(first);
+        }
         let interiors = match simplified.is_empty() {
             true => vec![],
-            false => simplified.into_iter().map(|vec| LineString(vec)).collect(),
+            false => {
+                simplified
+                    .into_iter()
+                    .map(|vec| {
+                        let mut ring = LineString(vec);
+                        let first = ring.0[0];
+                        if &ring.0[0] != ring.0.last().unwrap() {
+                            ring.0.push(first);
+                        }
+                        ring
+                    })
+                    .collect()
+            }
         };
         Polygon::new(exterior, interiors)
     }
