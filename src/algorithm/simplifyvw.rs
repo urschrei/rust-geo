@@ -176,6 +176,11 @@ where
     let mut rings = vec![];
     let mut tree: RTree<SimpleEdge<_>> = RTree::new();
     rings.push(visvalingam_preserve(exterior, epsilon, &mut tree));
+    if let Some(interior_rings) = interiors {
+        for ring in interior_rings {
+            rings.push(visvalingam_preserve(&ring.0, epsilon, &mut tree))
+        }
+    }
     rings
 }
 
@@ -443,12 +448,13 @@ where
     T: Float + SpadeFloat,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> Polygon<T> {
-        let mut simplified = vwp_wrapper(
-            &self.exterior.0,
-            Some(&self.interiors),
-            epsilon
-            );
-        Polygon::new(LineString(simplified.pop().unwrap()), vec![])
+        let mut simplified = vwp_wrapper(&self.exterior.0, Some(&self.interiors), epsilon);
+        let exterior = LineString(simplified.pop().unwrap());
+        let interiors = match simplified.is_empty() {
+            true => vec![],
+            false => simplified.into_iter().map(|vec| LineString(vec)).collect(),
+        };
+        Polygon::new(exterior, interiors)
     }
 }
 
