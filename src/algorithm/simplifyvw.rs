@@ -396,12 +396,11 @@ pub trait SimplifyVWPreserve<T, Epsilon = T> {
     ///
     /// The topology-preserving algorithm uses an [R* tree](../../../spade/rtree/struct.RTree.html) to efficiently find candidate line segments
     /// which are tested for intersection with a given triangle. If intersections are found,
-    /// the triangle is stored for later processing, and the next-largest area in the minimum
-    /// priority queue is chosen as the new epsilon.
+    /// the previous triangle (in the spatial sense) is also removed, altering the geometry of the intersection-causing triangle, and removing the intersection.
     ///
     /// In the example below, `(135.0, 68.0)` would be retained by the standard algorithm,
-    /// thus causing a self-intersection when the given epsilon is used. By increasing the epsilon
-    /// to the area associated with that point, we ensure that it is removed, thus removing the self-intersection.
+    /// causing `(94.0, 48.0)` (index `2`) to intersect with the segments `(280.0, 19.0), (117.0, 48.0)` and `(117.0, 48.0), (300,0, 40.0)` .
+    /// By removing `(135.0, 68.0)` (index `1`), we form a new triangle with indices `(0, 3, 4)` which does not cause a self-intersection.
     ///
     /// ```
     /// use geo::{Point, LineString};
