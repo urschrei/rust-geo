@@ -492,10 +492,8 @@ mod test {
         // smallest associated area is removed
         // the associated triangle is (1, 2, 3), and has an area of 668.5
         // the new triangle (0, 1, 3) self-intersects with triangle (3, 4, 5)
-        // by detecting the intersection, peeking at the next-largest value in the queue,
-        // and increasing the epsilon, we ensure that
-        // (0, 1, 2) is removed before re-processing (1, 2, 3)
-        // our final LineString is (0, 3, 4, 5, 6, 7)
+        // Point 1 must also be removed giving a final, valid 
+        // LineString of (0, 3, 4, 5, 6, 7)
         let points = vec![
             (10., 60.),
             (135., 68.),
