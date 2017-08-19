@@ -19,7 +19,7 @@ where
     current: usize,
     right: usize,
     area: T,
-    intersector: bool
+    intersector: bool,
 }
 
 // These impls give us a min-heap
@@ -109,7 +109,7 @@ where
             current: i + 1,
             left: i,
             right: i + 2,
-            intersector: false
+            intersector: false,
         });
     }
     // While there are still points for which the associated triangle
@@ -155,7 +155,7 @@ where
                 current: current_point as usize,
                 left: ai as usize,
                 right: bi as usize,
-                intersector: false
+                intersector: false,
             });
         }
     }
@@ -166,9 +166,23 @@ where
         .collect::<Vec<Point<T>>>()
 }
 
+// We wrap the actual function so we can share the R* Tree
+// this ensures that subsequent rings have access to previous segments to ensure
+// that intersections between outer and inner rings are detected
+fn vwp_wrapper<T>(rings: &Vec<&[Point<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
+where
+    T: Float + SpadeFloat,
+{
+    let mut tree: RTree<SimpleEdge<_>> = RTree::new();
+    rings
+        .iter()
+        .map(|ring| visvalingam_preserve(ring, epsilon, &mut tree))
+        .collect::<Vec<Vec<Point<T>>>>()
+}
+
 // Visvalingam with self-intersection detection to preserve topologies
 // this is a port of the technique at https://www.jasondavies.com/simplify/
-fn visvalingam_preserve<T>(orig: &[Point<T>], epsilon: &T) -> Vec<Point<T>>
+fn visvalingam_preserve<T>(orig: &[Point<T>], epsilon: &T, tree: &mut RTree<SimpleEdge<Point<T>>>) -> Vec<Point<T>>
 where
     T: Float + SpadeFloat,
 {
@@ -176,7 +190,6 @@ where
     if orig.len() < 3 || orig.is_empty() {
         return orig.to_vec();
     }
-
     let max = orig.len();
 
     // Adjacent retained points. Simulating the points in a
@@ -197,7 +210,6 @@ where
     // necessary in the main loop by checking the corresponding entry in
     // adjacent for (0, 0) values
     let mut pq = BinaryHeap::new();
-    let mut tree: RTree<SimpleEdge<_>> = RTree::new();
     // Compute the initial triangles, i.e. take all consecutive groups
     // of 3 points and form triangles from them
     for (i, win) in orig.windows(3).enumerate() {
@@ -206,7 +218,7 @@ where
             current: i + 1,
             left: i,
             right: i + 2,
-            intersector: false
+            intersector: false,
         };
         pq.push(v);
         // populate R* tree with line segments
@@ -262,18 +274,24 @@ where
             // we ensure it gets removed next by demoting its area to negative epsilon
             let temp_area = match smallest.intersector && (current_point as usize) < smallest.current {
                 true => -*epsilon,
-                false => area(&new_left, &new_current, &new_right)
+                false => area(&new_left, &new_current, &new_right),
             };
             let new_triangle = VScore {
                 area: temp_area,
                 current: current_point as usize,
                 left: ai as usize,
                 right: bi as usize,
-                intersector: false
+                intersector: false,
             };
             // add re-computed line segments to the tree
-            tree.insert(SimpleEdge::new(orig[ai as usize], orig[current_point as usize]));
-            tree.insert(SimpleEdge::new(orig[current_point as usize], orig[bi as usize]));
+            tree.insert(SimpleEdge::new(
+                orig[ai as usize],
+                orig[current_point as usize],
+            ));
+            tree.insert(SimpleEdge::new(
+                orig[current_point as usize],
+                orig[bi as usize],
+            ));
             // push re-computed triangle onto heap
             pq.push(new_triangle);
         }
@@ -416,7 +434,9 @@ where
     T: Float + SpadeFloat,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> LineString<T> {
-        LineString(visvalingam_preserve(&self.0, epsilon))
+        let inner = &self.0;
+        let mut simplified = vwp_wrapper(&vec![inner], epsilon);
+        LineString(simplified.pop().unwrap())
     }
 }
 
@@ -466,7 +486,7 @@ where
 #[cfg(test)]
 mod test {
     use types::{Point, LineString, Polygon, MultiLineString, MultiPolygon};
-    use super::{visvalingam, visvalingam_preserve, SimplifyVW};
+    use super::{visvalingam, vwp_wrapper, SimplifyVW};
 
     #[test]
     fn visvalingam_test() {
@@ -492,7 +512,7 @@ mod test {
         // smallest associated area is removed
         // the associated triangle is (1, 2, 3), and has an area of 668.5
         // the new triangle (0, 1, 3) self-intersects with triangle (3, 4, 5)
-        // Point 1 must also be removed giving a final, valid 
+        // Point 1 must also be removed giving a final, valid
         // LineString of (0, 3, 4, 5, 6, 7)
         let points = vec![
             (10., 60.),
@@ -505,7 +525,7 @@ mod test {
             (301., 10.),
         ];
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e.0, e.1)).collect();
-        let simplified = visvalingam_preserve(&points_ls, &668.6);
+        let simplified = vwp_wrapper(&vec![&points_ls], &668.6);
         // this is the correct, non-intersecting LineString
         let correct = vec![
             (10., 60.),
@@ -516,15 +536,15 @@ mod test {
             (301., 10.),
         ];
         let correct_ls: Vec<_> = correct.iter().map(|e| Point::new(e.0, e.1)).collect();
-        assert_eq!(simplified, correct_ls);
+        assert_eq!(simplified[0], correct_ls);
     }
     #[test]
     fn phi() {
         // simplify a longer LineString, eliminating self-intersections
         let points = include!("test_fixtures/norway_main.rs");
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
-        let simplified = visvalingam_preserve(&points_ls, &0.0005);
-        assert_eq!(simplified.len(), 3277);
+        let simplified = vwp_wrapper(&vec![&points_ls], &0.0005);
+        assert_eq!(simplified[0].len(), 3277);
     }
     #[test]
     fn visvalingam_test_long() {
