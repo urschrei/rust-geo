@@ -169,15 +169,14 @@ where
 // We wrap the actual function so we can share the R* Tree
 // this ensures that subsequent rings have access to previous segments to ensure
 // that intersections between outer and inner rings are detected
-fn vwp_wrapper<T>(rings: &Vec<&[Point<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
+fn vwp_wrapper<T>(exterior: &[Point<T>], interiors: Option<&[LineString<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
 where
     T: Float + SpadeFloat,
 {
+    let mut rings = vec![];
     let mut tree: RTree<SimpleEdge<_>> = RTree::new();
+    rings.push(visvalingam_preserve(exterior, epsilon, &mut tree));
     rings
-        .iter()
-        .map(|ring| visvalingam_preserve(ring, epsilon, &mut tree))
-        .collect::<Vec<Vec<Point<T>>>>()
 }
 
 // Visvalingam with self-intersection detection to preserve topologies
@@ -434,9 +433,22 @@ where
     T: Float + SpadeFloat,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> LineString<T> {
-        let inner = &self.0;
-        let mut simplified = vwp_wrapper(&vec![inner], epsilon);
+        let mut simplified = vwp_wrapper(&self.0, None, epsilon);
         LineString(simplified.pop().unwrap())
+    }
+}
+
+impl<T> SimplifyVWPreserve<T> for Polygon<T>
+where
+    T: Float + SpadeFloat,
+{
+    fn simplifyvw_preserve(&self, epsilon: &T) -> Polygon<T> {
+        let mut simplified = vwp_wrapper(
+            &self.exterior.0,
+            Some(&self.interiors),
+            epsilon
+            );
+        Polygon::new(LineString(simplified.pop().unwrap()), vec![])
     }
 }
 
@@ -525,7 +537,7 @@ mod test {
             (301., 10.),
         ];
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e.0, e.1)).collect();
-        let simplified = vwp_wrapper(&vec![&points_ls], &668.6);
+        let simplified = vwp_wrapper(&points_ls, None, &668.6);
         // this is the correct, non-intersecting LineString
         let correct = vec![
             (10., 60.),
@@ -543,7 +555,7 @@ mod test {
         // simplify a longer LineString, eliminating self-intersections
         let points = include!("test_fixtures/norway_main.rs");
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
-        let simplified = vwp_wrapper(&vec![&points_ls], &0.0005);
+        let simplified = vwp_wrapper(&points_ls, None, &0.0005);
         assert_eq!(simplified[0].len(), 3277);
     }
     #[test]
