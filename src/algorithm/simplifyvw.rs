@@ -357,7 +357,7 @@ fn area<T>(p1: &Point<T>, p2: &Point<T>, p3: &Point<T>) -> T
 where
     T: Float,
 {
-    ((p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.y() - p3.y())).abs() / (T::one() + T::one())
+    ((p1.x() - p3.x()) * (p2.y() - p3.y()) - (p2.x() - p3.x()) * (p1.y() - p3.y())).abs() / (T::one() + T::one()).abs()
 }
 
 /// Simplifies a geometry.
