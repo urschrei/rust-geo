@@ -241,8 +241,8 @@ where
             //  This triangle's area is below epsilon: eliminate the associated point
             Some(s) => s,
         };
-        if counter == 3 {
-            // we need at least three points to form a ring
+        if counter == 4 {
+            // we need at least three points to form a ring, but the last one is the same as the first
             break;
         }
         let (left, right) = adjacent[smallest.current];
@@ -363,7 +363,7 @@ where
 /// Simplifies a geometry.
 ///
 /// Polygons are simplified by running the algorithm on all their constituent rings.  This may
-/// result in invalid Polygons, and has no guarantee of perserving topology.  Multi* objects are
+/// result in invalid Polygons, and has no guarantee of preserving topology. Multi* objects are
 /// simplified by simplifying all their constituent geometries individually.
 pub trait SimplifyVW<T, Epsilon = T> {
     /// Returns the simplified representation of a geometry, using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
@@ -454,7 +454,7 @@ where
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> Polygon<T> {
         let mut simplified = vwp_wrapper(&self.exterior.0, Some(&self.interiors), epsilon);
-        let mut exterior = LineString(simplified.pop().unwrap());
+        let mut exterior = LineString(simplified.remove(0));
         // If we bailed out of the simplification because we only had 3 points left
         // we may need to close the ring
         let first = exterior.0[0];
