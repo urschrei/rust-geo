@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use num_traits::Float;
 use types::{Point, LineString, Polygon, MultiLineString, MultiPolygon};
+use algorithm::boundingbox::BoundingBox;
 
 use spade::SpadeFloat;
 use spade::primitives::SimpleEdge;
@@ -344,8 +345,17 @@ where
     T: Float + SpadeFloat,
 {
     let point_a = orig[triangle.left];
+    let point_b = orig[triangle.current];
     let point_c = orig[triangle.right];
-    let candidates = tree.lookup_in_rectangle(&BoundingRect::from_corners(&point_a, &point_c));
+    let bbox = LineString(vec![
+        orig[triangle.left],
+        orig[triangle.current],
+        orig[triangle.right],
+    ]).bbox()
+        .unwrap();
+    let br = Point::new(bbox.xmin, bbox.ymin);
+    let tl = Point::new(bbox.xmax, bbox.ymax);
+    let candidates = tree.lookup_in_rectangle(&BoundingRect::from_corners(&br, &tl));
     candidates
         .iter()
         .map(|c| {
@@ -353,6 +363,10 @@ where
             let ca = c.from;
             let cb = c.to;
             if ca != point_a && ca != point_c && cb != point_a && cb != point_c && cartesian_intersect(&ca, &cb, &point_a, &point_c) {
+                true
+            } else if ca != point_a && ca != point_b && cb != point_a && cb != point_b && cartesian_intersect(&ca, &cb, &point_a, &point_b) {
+                true
+            } else if ca != point_b && ca != point_c && cb != point_b && cb != point_c && cartesian_intersect(&ca, &cb, &point_b, &point_c) {
                 true
             } else {
                 false
@@ -594,7 +608,7 @@ mod test {
         let points = include!("test_fixtures/norway_main.rs");
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
         let simplified = vwp_wrapper(&points_ls, None, &0.0005);
-        assert_eq!(simplified[0].len(), 3277);
+        assert_eq!(simplified[0].len(), 3276);
     }
     #[test]
     fn visvalingam_test_long() {
