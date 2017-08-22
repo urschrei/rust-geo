@@ -465,8 +465,10 @@ pub trait SimplifyVWPreserve<T, Epsilon = T> {
     /// the previous triangle (in the spatial sense) is also removed, altering the geometry of the intersection-causing triangle, and removing the intersection.
     ///
     /// In the example below, `(135.0, 68.0)` would be retained by the standard algorithm,
-    /// causing `(94.0, 48.0)` (index `2`) to intersect with the segments `(280.0, 19.0), (117.0, 48.0)` and `(117.0, 48.0), (300,0, 40.0)` .
+    /// causing `(94.0, 48.0)` (index `2`) to intersect with the segments `(280.0, 19.0), (117.0, 48.0)` and `(117.0, 48.0), (300,0, 40.0)`.
     /// By removing `(135.0, 68.0)` (index `1`), we form a new triangle with indices `(0, 3, 4)` which does not cause a self-intersection.
+    /// 
+    /// Note that it is possible for the simplification algorithm to displace an interior ring outside the shell.
     ///
     /// ```
     /// use geo::{Point, LineString};
