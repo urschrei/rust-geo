@@ -286,7 +286,7 @@ where
             // HOWEVER if we're within 2 points of the absolute minimum, we can't remove this point or the next
             // because we could then no longer form a valid geometry if removal of next also caused an intersection.
             // The simplification process is thus over.
-            if counter <= geomtype.min_points as usize {
+            if counter <= geomtype.min_points {
                 break;
             }
         }
@@ -515,25 +515,14 @@ where
             geomtype: GeomType::Ring
         };
         let mut simplified = vwp_wrapper(&gt, &self.exterior.0, Some(&self.interiors), epsilon);
-        let mut exterior = LineString(simplified.remove(0));
-        // If we bailed out of the simplification because we only had 3 points left
-        // we may need to close the ring
-        let first = exterior.0[0];
-        if &exterior.0[0] != exterior.0.last().unwrap() {
-            exterior.0.push(first);
-        }
+        let exterior = LineString(simplified.remove(0));
         let interiors = match simplified.is_empty() {
             true => vec![],
             false => {
                 simplified
                     .into_iter()
                     .map(|vec| {
-                        let mut ring = LineString(vec);
-                        let first = ring.0[0];
-                        if &ring.0[0] != ring.0.last().unwrap() {
-                            ring.0.push(first);
-                        }
-                        ring
+                        LineString(vec)
                     })
                     .collect()
             }
