@@ -166,8 +166,8 @@ where
         .collect::<Vec<Point<T>>>()
 }
 
-// We wrap the actual function so we can share the R* Tree
-// this ensures that subsequent rings have access to previous segments to ensure
+// Wrap the actual function so the R* Tree can be shared.
+// this ensures that shell and rings have access to all segments to ensure
 // that intersections between outer and inner rings are detected
 fn vwp_wrapper<T>(exterior: &[Point<T>], interiors: Option<&[LineString<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
 where
@@ -175,7 +175,21 @@ where
 {
     let mut rings = vec![];
     let mut tree: RTree<SimpleEdge<_>> = RTree::new();
+    // Populate R* tree with exterior line segments
+    for win in exterior.windows(2) {
+        tree.insert(SimpleEdge::new(win[0], win[1]));
+    }
+    // and with interior segments, if any
+    if let Some(interior_rings) = interiors {
+        for ring in interior_rings {
+            for win in ring.0.windows(2) {
+                tree.insert(SimpleEdge::new(win[0], win[1]));
+            }
+        }
+    }
+    // Simplify shell
     rings.push(visvalingam_preserve(exterior, epsilon, &mut tree));
+    // Simplify interior rings, if any
     if let Some(interior_rings) = interiors {
         for ring in interior_rings {
             rings.push(visvalingam_preserve(&ring.0, epsilon, &mut tree))
@@ -207,8 +221,6 @@ where
             ((i - 1) as i32, (i + 1) as i32)
         })
         .collect();
-    // let mut intersections = vec![];
-
     // Store all the triangles in a minimum priority queue, based on their area.
     // Invalid triangles are *not* removed if / when points
     // are removed; they're handled by skipping them as
@@ -226,9 +238,6 @@ where
             intersector: false,
         };
         pq.push(v);
-        // populate R* tree with line segments
-        tree.insert(SimpleEdge::new(win[0], win[1]));
-        tree.insert(SimpleEdge::new(win[1], win[2]));
     }
     // While there are still points for which the associated triangle
     // has an area below the epsilon
