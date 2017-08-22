@@ -60,6 +60,22 @@ where
     }
 }
 
+// initial min: if we ever have fewer than these, stop immediately
+// min_points: if we detect a self-intersection before point removal, and we only
+// have min_points left, stop: since a self-intersection causes removal of the spatially previous
+// point, THAT could lead to a further self-intersection without the possibility of removing
+// more points, potentially leaving the geometry in an invalid state.
+enum GeomType {
+    Line {
+        initial_min: usize,
+        min_points: usize,
+    },
+    Ring {
+        initial_min: usize,
+        min_points: usize,
+    },
+}
+
 // Simplify a line using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
 //
 // epsilon is the minimum triangle area
@@ -170,7 +186,7 @@ where
 // Wrap the actual function so the R* Tree can be shared.
 // this ensures that shell and rings have access to all segments to ensure
 // that intersections between outer and inner rings are detected
-fn vwp_wrapper<T>(exterior: &[Point<T>], interiors: Option<&[LineString<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
+fn vwp_wrapper<T>(geomtype: &GeomType, exterior: &[Point<T>], interiors: Option<&[LineString<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
 where
     T: Float + SpadeFloat,
 {
@@ -189,11 +205,16 @@ where
         }
     }
     // Simplify shell
-    rings.push(visvalingam_preserve(exterior, epsilon, &mut tree));
+    rings.push(visvalingam_preserve(
+        &geomtype,
+        exterior,
+        epsilon,
+        &mut tree,
+    ));
     // Simplify interior rings, if any
     if let Some(interior_rings) = interiors {
         for ring in interior_rings {
-            rings.push(visvalingam_preserve(&ring.0, epsilon, &mut tree))
+            rings.push(visvalingam_preserve(&geomtype, &ring.0, epsilon, &mut tree))
         }
     }
     rings
@@ -201,17 +222,16 @@ where
 
 // Visvalingam with self-intersection detection to preserve topologies
 // this is a port of the technique at https://www.jasondavies.com/simplify/
-fn visvalingam_preserve<T>(orig: &[Point<T>], epsilon: &T, tree: &mut RTree<SimpleEdge<Point<T>>>) -> Vec<Point<T>>
+fn visvalingam_preserve<T>(geomtype: &GeomType, orig: &[Point<T>], epsilon: &T, tree: &mut RTree<SimpleEdge<Point<T>>>) -> Vec<Point<T>>
 where
     T: Float + SpadeFloat,
 {
-    // No need to continue without at least three points
-    if orig.len() < 3 || orig.is_empty() {
-        return orig.to_vec();
-    }
     let max = orig.len();
     let mut counter = orig.len();
-
+    let min_points = match *geomtype {
+        GeomType::Line { initial_min, .. } => initial_min,
+        GeomType::Ring { initial_min, .. } => initial_min,
+    };
     // Adjacent retained points. Simulating the points in a
     // linked list with indices into `orig`. Big number (larger than or equal to
     // `max`) means no next element, and (0, 0) means deleted element.
@@ -251,8 +271,8 @@ where
             //  This triangle's area is below epsilon: eliminate the associated point
             Some(s) => s,
         };
-        if counter == 4 {
-            // we need at least three points to form a ring, but the last one is the same as the first
+        if counter <= min_points {
+            // we can't remove any more points no matter what
             break;
         }
         let (left, right) = adjacent[smallest.current];
@@ -264,6 +284,23 @@ where
         // if removal of this point causes a self-intersection, we also remove the previous point
         // that removal alters the geometry, removing the self-intersection
         smallest.intersector = tree_intersect(&tree, &mut smallest, orig);
+        if smallest.intersector {
+            // HOWEVER if we're within 2 points of the absolute minimum, we can't remove this point or the next
+            // because we could then no longer form a valid geometry if removal of next also caused an intersection.
+            // The simplification process is thus over.
+            match *geomtype {
+                GeomType::Line { min_points, .. } => {
+                    if counter <= min_points as usize {
+                        break;
+                    }
+                }
+                GeomType::Ring { min_points, .. } => {
+                    if counter <= min_points as usize {
+                        break;
+                    }
+                }
+            }
+        }
         // We've got a valid triangle, and its area is smaller than epsilon, so
         // remove it from the simulated "linked list"
         adjacent[smallest.current as usize] = (0, 0);
@@ -466,7 +503,11 @@ where
     T: Float + SpadeFloat,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> LineString<T> {
-        let mut simplified = vwp_wrapper(&self.0, None, epsilon);
+        let gt = GeomType::Line {
+            initial_min: 2,
+            min_points: 4,
+        };
+        let mut simplified = vwp_wrapper(&gt, &self.0, None, epsilon);
         LineString(simplified.pop().unwrap())
     }
 }
@@ -476,7 +517,11 @@ where
     T: Float + SpadeFloat,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> Polygon<T> {
-        let mut simplified = vwp_wrapper(&self.exterior.0, Some(&self.interiors), epsilon);
+        let gt = GeomType::Ring {
+            initial_min: 4,
+            min_points: 6,
+        };
+        let mut simplified = vwp_wrapper(&gt, &self.exterior.0, Some(&self.interiors), epsilon);
         let mut exterior = LineString(simplified.remove(0));
         // If we bailed out of the simplification because we only had 3 points left
         // we may need to close the ring
@@ -550,7 +595,7 @@ where
 #[cfg(test)]
 mod test {
     use types::{Point, LineString, Polygon, MultiLineString, MultiPolygon};
-    use super::{visvalingam, vwp_wrapper, SimplifyVW};
+    use super::{visvalingam, vwp_wrapper, GeomType, SimplifyVW, SimplifyVWPreserve};
 
     #[test]
     fn visvalingam_test() {
@@ -589,7 +634,11 @@ mod test {
             (301., 10.),
         ];
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e.0, e.1)).collect();
-        let simplified = vwp_wrapper(&points_ls, None, &668.6);
+        let gt = &GeomType::Line {
+            initial_min: 2,
+            min_points: 4,
+        };
+        let simplified = vwp_wrapper(&gt, &points_ls, None, &668.6);
         // this is the correct, non-intersecting LineString
         let correct = vec![
             (10., 60.),
@@ -603,11 +652,39 @@ mod test {
         assert_eq!(simplified[0], correct_ls);
     }
     #[test]
+    fn tau() {
+        // we would expect outer[2] to be removed, as its associated area
+        // is below epsilon. However, this causes a self-intersection
+        // with the inner ring, which would also trigger removal of outer[1],
+        // leaving the geometry below min_points. It is thus retained.
+        // Inner should also be reduced, but has points == initial_min for the Polygon type
+        let outer = LineString(vec![
+            Point::new(-54.4921875, 21.289374355860424),
+            Point::new(-33.5, 56.9449741808516),
+            Point::new(-22.5, 44.08758502824516),
+            Point::new(-19.5, 23.241346102386135),
+            Point::new(-54.4921875, 21.289374355860424),
+        ]);
+        let inner = LineString(vec![
+            Point::new(-24.451171875, 35.266685523707665),
+            Point::new(-29.513671875, 47.32027765985069),
+            Point::new(-22.869140625, 43.80817468459856),
+            Point::new(-24.451171875, 35.266685523707665),
+        ]);
+        let poly = Polygon::new(outer.clone(), vec![inner]);
+        let simplified = poly.simplifyvw_preserve(&95.4);
+        assert_eq!(simplified.exterior, outer);
+    }
+    #[test]
     fn phi() {
         // simplify a longer LineString, eliminating self-intersections
         let points = include!("test_fixtures/norway_main.rs");
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
-        let simplified = vwp_wrapper(&points_ls, None, &0.0005);
+        let gt = &GeomType::Line {
+            initial_min: 2,
+            min_points: 4,
+        };
+        let simplified = vwp_wrapper(&gt, &points_ls, None, &0.0005);
         assert_eq!(simplified[0].len(), 3276);
     }
     #[test]
