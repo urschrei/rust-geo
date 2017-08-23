@@ -60,22 +60,22 @@ where
     }
 }
 
+// Geometries that can be simplified using the topology-preserving variant
+#[derive(Debug)]
+enum GeomType {
+    Line,
+    Ring,
+}
 // initial min: if we ever have fewer than these, stop immediately
 // min_points: if we detect a self-intersection before point removal, and we only
 // have min_points left, stop: since a self-intersection causes removal of the spatially previous
 // point, THAT could lead to a further self-intersection without the possibility of removing
 // more points, potentially leaving the geometry in an invalid state.
 #[derive(Debug)]
-enum GeomType {
-    Line,
-    Ring
-}
-
-#[derive(Debug)]
 struct GeomSettings {
     initial_min: usize,
     min_points: usize,
-    geomtype: GeomType
+    geomtype: GeomType,
 }
 
 // Simplify a line using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
@@ -186,8 +186,8 @@ where
 }
 
 // Wrap the actual function so the R* Tree can be shared.
-// this ensures that shell and rings have access to all segments to ensure
-// that intersections between outer and inner rings are detected
+// this ensures that shell and rings have access to all segments, so
+// intersections between outer and inner rings are detected
 fn vwp_wrapper<T>(geomtype: &GeomSettings, exterior: &[Point<T>], interiors: Option<&[LineString<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
 where
     T: Float + SpadeFloat,
@@ -227,7 +227,7 @@ where
 fn visvalingam_preserve<T>(geomtype: &GeomSettings, orig: &[Point<T>], epsilon: &T, tree: &mut RTree<SimpleEdge<Point<T>>>) -> Vec<Point<T>>
 where
     T: Float + SpadeFloat,
-{   
+{
     if orig.is_empty() || orig.len() < 3 {
         return orig.to_vec();
     }
@@ -459,7 +459,7 @@ pub trait SimplifyVWPreserve<T, Epsilon = T> {
     /// In the example below, `(135.0, 68.0)` would be retained by the standard algorithm,
     /// causing `(94.0, 48.0)` (index `2`) to intersect with the segments `(280.0, 19.0), (117.0, 48.0)` and `(117.0, 48.0), (300,0, 40.0)`.
     /// By removing `(135.0, 68.0)` (index `1`), we form a new triangle with indices `(0, 3, 4)` which does not cause a self-intersection.
-    /// 
+    ///
     /// **Note**: it is possible for the simplification algorithm to displace a Polygon's interior ring outside its shell.
     ///
     /// ```
@@ -500,10 +500,24 @@ where
         let gt = GeomSettings {
             initial_min: 2,
             min_points: 4,
-            geomtype: GeomType::Line
+            geomtype: GeomType::Line,
         };
         let mut simplified = vwp_wrapper(&gt, &self.0, None, epsilon);
         LineString(simplified.pop().unwrap())
+    }
+}
+
+impl<T> SimplifyVWPreserve<T> for MultiLineString<T>
+where
+    T: Float + SpadeFloat,
+{
+    fn simplifyvw_preserve(&self, epsilon: &T) -> MultiLineString<T> {
+        MultiLineString(
+            self.0
+                .iter()
+                .map(|l| l.simplifyvw_preserve(epsilon))
+                .collect(),
+        )
     }
 }
 
@@ -515,22 +529,29 @@ where
         let gt = GeomSettings {
             initial_min: 4,
             min_points: 6,
-            geomtype: GeomType::Ring
+            geomtype: GeomType::Ring,
         };
         let mut simplified = vwp_wrapper(&gt, &self.exterior.0, Some(&self.interiors), epsilon);
         let exterior = LineString(simplified.remove(0));
         let interiors = match simplified.is_empty() {
             true => vec![],
-            false => {
-                simplified
-                    .into_iter()
-                    .map(|vec| {
-                        LineString(vec)
-                    })
-                    .collect()
-            }
+            false => simplified.into_iter().map(|vec| LineString(vec)).collect(),
         };
         Polygon::new(exterior, interiors)
+    }
+}
+
+impl<T> SimplifyVWPreserve<T> for MultiPolygon<T>
+where
+    T: Float + SpadeFloat,
+{
+    fn simplifyvw_preserve(&self, epsilon: &T) -> MultiPolygon<T> {
+        MultiPolygon(
+            self.0
+                .iter()
+                .map(|p| p.simplifyvw_preserve(epsilon))
+                .collect(),
+        )
     }
 }
 
@@ -622,7 +643,7 @@ mod test {
         let gt = &GeomSettings {
             initial_min: 2,
             min_points: 4,
-            geomtype: GeomType::Line
+            geomtype: GeomType::Line,
         };
         let simplified = vwp_wrapper(&gt, &points_ls, None, &668.6);
         // this is the correct, non-intersecting LineString
@@ -669,7 +690,7 @@ mod test {
         let gt = &GeomSettings {
             initial_min: 2,
             min_points: 4,
-            geomtype: GeomType::Line
+            geomtype: GeomType::Line,
         };
         let simplified = vwp_wrapper(&gt, &points_ls, None, &0.0005);
         assert_eq!(simplified[0].len(), 3276);
