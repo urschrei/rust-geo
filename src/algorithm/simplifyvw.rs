@@ -454,7 +454,7 @@ pub trait SimplifyVWPreserve<T, Epsilon = T> {
     ///
     /// The topology-preserving algorithm uses an [R* tree](../../../spade/rtree/struct.RTree.html) to efficiently find candidate line segments
     /// which are tested for intersection with a given triangle. If intersections are found,
-    /// the previous point (in the spatial sense) is also removed, altering the geometry and removing the intersection.
+    /// the previous point (i.e. the left component of the current triangle) is also removed, altering the geometry and removing the intersection.
     ///
     /// In the example below, `(135.0, 68.0)` would be retained by the standard algorithm,
     /// causing `(94.0, 48.0)` (index `2`) to intersect with the segments `(280.0, 19.0), (117.0, 48.0)` and `(117.0, 48.0), (300,0, 40.0)`.
