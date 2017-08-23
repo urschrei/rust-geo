@@ -458,6 +458,10 @@ pub trait SimplifyVWPreserve<T, Epsilon = T> {
     ///
     /// **Note**: it is possible for the simplification algorithm to displace a Polygon's interior ring outside its shell.
     ///
+    /// If removal of a point causes a self-intersection, but the geometry only has `n+2` points remaining (4 for a `LineString`, 6 for a `Polygon`)
+    /// The point is retained and the simplification process ends. This is because there is no guarantee that removal of two points will remove
+    /// the intersection, but removal of further points would leave too few points to form a valid geometry.
+    ///
     /// ```
     /// use geo::{Point, LineString};
     /// use geo::algorithm::simplifyvw::{SimplifyVWPreserve};
