@@ -227,7 +227,10 @@ where
 fn visvalingam_preserve<T>(geomtype: &GeomSettings, orig: &[Point<T>], epsilon: &T, tree: &mut RTree<SimpleEdge<Point<T>>>) -> Vec<Point<T>>
 where
     T: Float + SpadeFloat,
-{
+{   
+    if orig.is_empty() || orig.len() < 3 {
+        return orig.to_vec();
+    }
     let max = orig.len();
     let mut counter = orig.len();
     // Adjacent retained points. Simulating the points in a
