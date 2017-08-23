@@ -208,7 +208,7 @@ where
     }
     // Simplify shell
     rings.push(visvalingam_preserve(
-        &geomtype,
+        geomtype,
         exterior,
         epsilon,
         &mut tree,
@@ -216,7 +216,7 @@ where
     // Simplify interior rings, if any
     if let Some(interior_rings) = interiors {
         for ring in interior_rings {
-            rings.push(visvalingam_preserve(&geomtype, &ring.0, epsilon, &mut tree))
+            rings.push(visvalingam_preserve(geomtype, &ring.0, epsilon, &mut tree))
         }
     }
     rings
@@ -284,14 +284,12 @@ where
         }
         // if removal of this point causes a self-intersection, we also remove the previous point
         // that removal alters the geometry, removing the self-intersection
-        smallest.intersector = tree_intersect(&tree, &mut smallest, orig);
-        if smallest.intersector {
-            // HOWEVER if we're within 2 points of the absolute minimum, we can't remove this point or the next
-            // because we could then no longer form a valid geometry if removal of next also caused an intersection.
-            // The simplification process is thus over.
-            if counter <= geomtype.min_points {
-                break;
-            }
+        // HOWEVER if we're within 2 points of the absolute minimum, we can't remove this point or the next
+        // because we could then no longer form a valid geometry if removal of next also caused an intersection.
+        // The simplification process is thus over.
+        smallest.intersector = tree_intersect(tree, &smallest, orig);
+        if smallest.intersector && counter <= geomtype.min_points {
+            break;
         }
         // We've got a valid triangle, and its area is smaller than epsilon, so
         // remove it from the simulated "linked list"
@@ -321,9 +319,9 @@ where
             let new_right = Point::new(orig[bi as usize].x(), orig[bi as usize].y());
             // The current point causes a self-intersection, and this point precedes it
             // we ensure it gets removed next by demoting its area to negative epsilon
-            let temp_area = match smallest.intersector && (current_point as usize) < smallest.current {
-                true => -*epsilon,
-                false => area(&new_left, &new_current, &new_right),
+            let temp_area = if smallest.intersector && (current_point as usize) < smallest.current {
+                -*epsilon } else { 
+                area(&new_left, &new_current, &new_right)
             };
             let new_triangle = VScore {
                 area: temp_area,
@@ -395,13 +393,11 @@ where
                 true
             } else if ca != point_a && ca != point_b && cb != point_a && cb != point_b && cartesian_intersect(&ca, &cb, &point_a, &point_b) {
                 true
-            } else if ca != point_b && ca != point_c && cb != point_b && cb != point_c && cartesian_intersect(&ca, &cb, &point_b, &point_c) {
-                true
             } else {
-                false
+                ca != point_b && ca != point_c && cb != point_b && cb != point_c && cartesian_intersect(&ca, &cb, &point_b, &point_c)
             }
         })
-        .any(|elem| elem == true)
+        .any(|elem| elem)
 }
 
 // Area of a triangle given three vertices
@@ -535,7 +531,7 @@ where
         let exterior = LineString(simplified.remove(0));
         let interiors = match simplified.is_empty() {
             true => vec![],
-            false => simplified.into_iter().map(|vec| LineString(vec)).collect(),
+            false => simplified.into_iter().map(LineString).collect(),
         };
         Polygon::new(exterior, interiors)
     }
