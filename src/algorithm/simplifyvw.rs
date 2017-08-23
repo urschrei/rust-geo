@@ -683,6 +683,38 @@ mod test {
         assert_eq!(simplified.exterior, outer);
     }
     #[test]
+    fn omicron() {
+        // we would expect outer[2] to be removed, as its associated area
+        // is below epsilon. However, this causes a self-intersection
+        // with the inner ring, which would also trigger removal of outer[1],
+        // leaving the geometry below min_points. It is thus retained.
+        // Inner should be reduced to four points by removing inner[2]
+        let outer = LineString(vec![
+            Point::new(-54.4921875, 21.289374355860424),
+            Point::new(-33.5, 56.9449741808516),
+            Point::new(-22.5, 44.08758502824516),
+            Point::new(-19.5, 23.241346102386135),
+            Point::new(-54.4921875, 21.289374355860424),
+        ]);
+        let inner = LineString(vec![
+            Point::new(-24.451171875, 35.266685523707665),
+            Point::new(-40.0, 45.),
+            Point::new(-29.513671875, 47.32027765985069),
+            Point::new(-22.869140625, 43.80817468459856),
+            Point::new(-24.451171875, 35.266685523707665),
+        ]);
+        let correct_inner = LineString(vec![
+            Point::new(-24.451171875, 35.266685523707665),
+            Point::new(-40.0, 45.0),
+            Point::new(-22.869140625, 43.80817468459856),
+            Point::new(-24.451171875, 35.266685523707665)
+        ]);
+        let poly = Polygon::new(outer.clone(), vec![inner]);
+        let simplified = poly.simplifyvw_preserve(&95.4);
+        assert_eq!(simplified.exterior, outer);
+        assert_eq!(simplified.interiors[0], correct_inner);
+    }
+    #[test]
     fn phi() {
         // simplify a longer LineString, eliminating self-intersections
         let points = include!("test_fixtures/norway_main.rs");
