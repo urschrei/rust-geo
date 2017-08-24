@@ -444,22 +444,26 @@ pub trait SimplifyVW<T, Epsilon = T> {
 
 /// Simplifies a geometry, preserving its topology by removing self-intersections
 pub trait SimplifyVWPreserve<T, Epsilon = T> {
-    /// Returns the simplified representation of a geometry, using the [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm
+    /// Returns the simplified representation of a geometry, using a topology-preserving variant of the
+    /// [Visvalingam-Whyatt](http://www.tandfonline.com/doi/abs/10.1179/000870493786962263) algorithm.
     ///
-    /// See [here](https://www.jasondavies.com/simplify/) for a graphical explanation
+    /// See [here](https://www.jasondavies.com/simplify/) for a graphical explanation.
     ///
-    /// The topology-preserving algorithm uses an [R* tree](../../../spade/rtree/struct.RTree.html) to efficiently find candidate line segments
-    /// which are tested for intersection with a given triangle. If intersections are found,
-    /// the previous point (i.e. the left component of the current triangle) is also removed, altering the geometry and removing the intersection.
+    /// The topology-preserving algorithm uses an [R* tree](../../../spade/rtree/struct.RTree.html) to
+    /// efficiently find candidate line segments which are tested for intersection with a given triangle.
+    /// If intersections are found, the previous point (i.e. the left component of the current triangle)
+    /// is also removed, altering the geometry and removing the intersection.
     ///
     /// In the example below, `(135.0, 68.0)` would be retained by the standard algorithm,
-    /// causing `(94.0, 48.0)` (index `2`) to intersect with the segments `(280.0, 19.0), (117.0, 48.0)` and `(117.0, 48.0), (300,0, 40.0)`.
-    /// By removing `(135.0, 68.0)` (index `1`), we form a new triangle with indices `(0, 3, 4)` which does not cause a self-intersection.
+    /// forming triangle `(0, 1, 3),` which intersects with the segments `(280.0, 19.0),
+    /// (117.0, 48.0)` and `(117.0, 48.0), (300,0, 40.0)`. By removing it,
+    /// a new triangle with indices `(0, 3, 4)` is formed, which does not cause a self-intersection.
     ///
     /// **Note**: it is possible for the simplification algorithm to displace a Polygon's interior ring outside its shell.
     ///
-    /// If removal of a point causes a self-intersection, but the geometry only has `n+2` points remaining (4 for a `LineString`, 6 for a `Polygon`)
-    /// The point is retained and the simplification process ends. This is because there is no guarantee that removal of two points will remove
+    /// **Note**: if removal of a point causes a self-intersection, but the geometry only has `n + 2`
+    /// points remaining (4 for a `LineString`, 6 for a `Polygon`), the point is retained and the
+    /// simplification process ends. This is because there is no guarantee that removal of two points will remove
     /// the intersection, but removal of further points would leave too few points to form a valid geometry.
     ///
     /// ```
