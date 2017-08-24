@@ -5,9 +5,109 @@ use types::{Point, LineString, Polygon, MultiLineString, MultiPolygon};
 use algorithm::boundingbox::BoundingBox;
 
 use spade::SpadeFloat;
-use spade::primitives::SimpleEdge;
-use spade::BoundingRect;
-use spade::rtree::RTree;
+
+use rusqlite::{Connection};
+use rusqlite::types::{ToSql, FromSql};
+
+#[derive(Debug)]
+struct SLRtree {
+    conn: Connection,
+}
+
+#[derive(Debug)]
+struct QResult<T>
+where
+    T: Float + SpadeFloat,
+{
+    from: Point<T>,
+    to: Point<T>
+}
+
+impl SLRtree {
+    fn new() -> SLRtree {
+        let conn = Connection::open_in_memory().unwrap();
+        // create R* Tree
+        conn.execute(
+            "CREATE VIRTUAL TABLE tree USING rtree(
+            id,
+            minX, maxX,
+            minY, maxY,
+            )",
+            &[],
+        ).unwrap();
+        conn.execute(
+            "CREATE TABLE segments(
+            id INTEGER PRIMARY KEY,
+            startX REAL,
+            startY REAL,
+            endX REAL,
+            endY REAL
+            )",
+            &[],
+        ).unwrap();
+        SLRtree { conn: conn }
+    }
+    fn insert<T>(&self, line: &[Point<T>])
+    where
+        T: Float + SpadeFloat + ToSql,
+    {
+        for segment in line.windows(2) {
+            let ls = LineString(vec![segment[0], segment[1]]);
+            let bbox = ls.bbox().unwrap();
+            // insert bbox into R* Tree
+            self.conn
+                .execute(
+                    "INSERT INTO tree (minX, maxX, minY, maxY)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    &[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax],
+                )
+                .unwrap();
+            self.conn
+                .execute(
+                    "INSERT INTO segments (startX, startY, endX, endY)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    &[&segment[0].x(), &segment[0].y(), &segment[1].x(), &segment[1].y()],
+                )
+                .unwrap();
+        }
+    }
+    fn query<T>(&self, start: &Point<T>, current: &Point<T>, end: &Point<T>) -> Vec<QResult<T>>
+    where
+        T: Float + SpadeFloat + FromSql + ToSql,
+    {
+        let bbox = LineString(vec![*start, *current, *end]).bbox().unwrap();
+        let mut stmt = self.conn
+            .prepare(
+                "SELECT startX, endX, startY, endY FROM segments, tree
+                 WHERE segments.id=tree.id
+                   AND minX>=?1 AND maxX<=?2
+                   AND minY>=?3 AND maxY>=?4",
+            )
+            .unwrap();
+        let results = stmt.query_map(&[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax], |row| {
+            QResult {
+                from: Point::new(row.get(0), row.get(2)),
+                to: Point::new(row.get(1), row.get(3))
+            }
+        }).unwrap();
+        let mut r = vec![];
+        for result in results {
+            r.push(result.unwrap());
+        }
+        r
+    }
+    fn delete<T>(&self, start: &Point<T>, end: &Point<T>)
+        where T: Float + SpadeFloat + ToSql,
+    {
+        let mut stmt = self.conn
+            .prepare(
+                "DELETE FROM segments WHERE startX==?1 AND endX==?2
+                 AND startY==?3 AND endY==?4",
+            )
+            .unwrap();
+        let _ = stmt.execute(&[&start.x(), &end.x(), &start.y(), &end.y()]).unwrap();
+    }
+}
 
 // Store triangle information
 // current is the candidate point for removal
@@ -190,29 +290,20 @@ where
 // intersections between outer and inner rings are detected
 fn vwp_wrapper<T>(geomtype: &GeomSettings, exterior: &[Point<T>], interiors: Option<&[LineString<T>]>, epsilon: &T) -> Vec<Vec<Point<T>>>
 where
-    T: Float + SpadeFloat,
+    T: Float + SpadeFloat + FromSql + ToSql,
 {
     let mut rings = vec![];
-    let mut tree: RTree<SimpleEdge<_>> = RTree::new();
+    let mut tree = SLRtree::new();
     // Populate R* tree with exterior line segments
-    for win in exterior.windows(2) {
-        tree.insert(SimpleEdge::new(win[0], win[1]));
-    }
+    tree.insert(exterior);
     // and with interior segments, if any
     if let Some(interior_rings) = interiors {
         for ring in interior_rings {
-            for win in ring.0.windows(2) {
-                tree.insert(SimpleEdge::new(win[0], win[1]));
-            }
+            tree.insert(&ring.0)
         }
     }
     // Simplify shell
-    rings.push(visvalingam_preserve(
-        geomtype,
-        exterior,
-        epsilon,
-        &mut tree,
-    ));
+    rings.push(visvalingam_preserve(geomtype, exterior, epsilon, &mut tree));
     // Simplify interior rings, if any
     if let Some(interior_rings) = interiors {
         for ring in interior_rings {
@@ -224,9 +315,9 @@ where
 
 // Visvalingam with self-intersection detection to preserve topologies
 // this is a port of the technique at https://www.jasondavies.com/simplify/
-fn visvalingam_preserve<T>(geomtype: &GeomSettings, orig: &[Point<T>], epsilon: &T, tree: &mut RTree<SimpleEdge<Point<T>>>) -> Vec<Point<T>>
+fn visvalingam_preserve<T>(geomtype: &GeomSettings, orig: &[Point<T>], epsilon: &T, tree: &mut SLRtree) -> Vec<Point<T>>
 where
-    T: Float + SpadeFloat,
+    T: Float + SpadeFloat + FromSql + ToSql,
 {
     if orig.is_empty() || orig.len() < 3 {
         return orig.to_vec();
@@ -298,8 +389,8 @@ where
         // remove stale segments from R* tree
         // we have to call this twice because only one segment is returned at a time
         // this should be OK because a point can only share at most two segments
-        tree.lookup_and_remove(&orig[smallest.right]);
-        tree.lookup_and_remove(&orig[smallest.left]);
+        tree.delete(&orig[smallest.left], &orig[smallest.current]);
+        tree.delete(&orig[smallest.current], &orig[smallest.right]);
         // Now recompute the adjacent triangle(s), using left and right adjacent points
         let (ll, _) = adjacent[left as usize];
         let (_, rr) = adjacent[right as usize];
@@ -320,7 +411,8 @@ where
             // The current point causes a self-intersection, and this point precedes it
             // we ensure it gets removed next by demoting its area to negative epsilon
             let temp_area = if smallest.intersector && (current_point as usize) < smallest.current {
-                -*epsilon } else { 
+                -*epsilon
+            } else {
                 area(&new_left, &new_current, &new_right)
             };
             let new_triangle = VScore {
@@ -331,14 +423,8 @@ where
                 intersector: false,
             };
             // add re-computed line segments to the tree
-            tree.insert(SimpleEdge::new(
-                orig[ai as usize],
-                orig[current_point as usize],
-            ));
-            tree.insert(SimpleEdge::new(
-                orig[current_point as usize],
-                orig[bi as usize],
-            ));
+            tree.insert(&vec![orig[ai as usize], orig[current_point as usize]]);
+            tree.insert(&vec![orig[current_point as usize], orig[bi as usize]]);
             // push re-computed triangle onto heap
             pq.push(new_triangle);
         }
@@ -367,22 +453,14 @@ where
 }
 
 // check whether a triangle's edges intersect with any other edges of the LineString
-fn tree_intersect<T>(tree: &RTree<SimpleEdge<Point<T>>>, triangle: &VScore<T>, orig: &[Point<T>]) -> bool
+fn tree_intersect<T>(tree: &SLRtree, triangle: &VScore<T>, orig: &[Point<T>]) -> bool
 where
-    T: Float + SpadeFloat,
+    T: Float + SpadeFloat + FromSql + ToSql,
 {
     let point_a = orig[triangle.left];
     let point_b = orig[triangle.current];
     let point_c = orig[triangle.right];
-    let bbox = LineString(vec![
-        orig[triangle.left],
-        orig[triangle.current],
-        orig[triangle.right],
-    ]).bbox()
-        .unwrap();
-    let br = Point::new(bbox.xmin, bbox.ymin);
-    let tl = Point::new(bbox.xmax, bbox.ymax);
-    let candidates = tree.lookup_in_rectangle(&BoundingRect::from_corners(&br, &tl));
+    let candidates = tree.query(&point_a, &point_b, &point_c);
     candidates
         .iter()
         .map(|c| {
@@ -498,7 +576,7 @@ pub trait SimplifyVWPreserve<T, Epsilon = T> {
 
 impl<T> SimplifyVWPreserve<T> for LineString<T>
 where
-    T: Float + SpadeFloat,
+    T: Float + SpadeFloat + FromSql + ToSql,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> LineString<T> {
         let gt = GeomSettings {
@@ -513,7 +591,7 @@ where
 
 impl<T> SimplifyVWPreserve<T> for MultiLineString<T>
 where
-    T: Float + SpadeFloat,
+    T: Float + SpadeFloat + FromSql + ToSql,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> MultiLineString<T> {
         MultiLineString(
@@ -527,7 +605,7 @@ where
 
 impl<T> SimplifyVWPreserve<T> for Polygon<T>
 where
-    T: Float + SpadeFloat,
+    T: Float + SpadeFloat + FromSql + ToSql,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> Polygon<T> {
         let gt = GeomSettings {
@@ -547,7 +625,7 @@ where
 
 impl<T> SimplifyVWPreserve<T> for MultiPolygon<T>
 where
-    T: Float + SpadeFloat,
+    T: Float + SpadeFloat + FromSql + ToSql,
 {
     fn simplifyvw_preserve(&self, epsilon: &T) -> MultiPolygon<T> {
         MultiPolygon(
@@ -605,7 +683,30 @@ where
 #[cfg(test)]
 mod test {
     use types::{Point, LineString, Polygon, MultiLineString, MultiPolygon};
-    use super::{visvalingam, vwp_wrapper, cartesian_intersect, GeomSettings, GeomType, SimplifyVW, SimplifyVWPreserve};
+    use super::{visvalingam, vwp_wrapper, cartesian_intersect, SLRtree, GeomSettings, GeomType, SimplifyVW, SimplifyVWPreserve};
+
+    #[test]
+    fn test_sqlite_rtree() {
+        let tree = SLRtree::new();
+        let points = vec![
+            (10., 60.),
+            (135., 68.),
+            (94., 48.),
+            (126., 31.),
+            (280., 19.),
+            (117., 48.),
+            (300., 40.),
+            (301., 10.),
+        ];
+        let points_ls: Vec<_> = points.iter().map(|e| Point::new(e.0, e.1)).collect();
+        tree.insert(&points_ls);
+        let res = tree.query(&points_ls[0], &points_ls[1], &points_ls[2]);
+        println!("Result: {:?}", res);
+        let _ = tree.delete(&points_ls[0], &points_ls[1]);
+        let res2 = tree.query(&points_ls[0], &points_ls[1], &points_ls[2]);
+        println!("Result 2: {:?}", res2);
+        // assert_eq!(res2[0].id, 2);
+    }
 
     #[test]
     fn visvalingam_test() {
@@ -727,7 +828,7 @@ mod test {
             Point::new(-24.451171875, 35.266685523707665),
             Point::new(-40.0, 45.0),
             Point::new(-22.869140625, 43.80817468459856),
-            Point::new(-24.451171875, 35.266685523707665)
+            Point::new(-24.451171875, 35.266685523707665),
         ]);
         let poly = Polygon::new(outer.clone(), vec![inner]);
         let simplified = poly.simplifyvw_preserve(&95.4);
