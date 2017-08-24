@@ -605,7 +605,7 @@ where
 #[cfg(test)]
 mod test {
     use types::{Point, LineString, Polygon, MultiLineString, MultiPolygon};
-    use super::{visvalingam, vwp_wrapper, GeomSettings, GeomType, SimplifyVW, SimplifyVWPreserve};
+    use super::{visvalingam, vwp_wrapper, cartesian_intersect, GeomSettings, GeomType, SimplifyVW, SimplifyVWPreserve};
 
     #[test]
     fn visvalingam_test() {
@@ -626,7 +626,23 @@ mod test {
         assert_eq!(simplified, correct_ls);
     }
     #[test]
-    fn rho() {
+    fn vwp_intersection_test() {
+        // does the intersection check always work
+        let a = Point::new(1., 3.);
+        let b = Point::new(3., 1.);
+        let c = Point::new(3., 3.);
+        let d = Point::new(1., 1.);
+        // cw + ccw
+        assert_eq!(cartesian_intersect(&a, &b, &c, &d), true);
+        // ccw + ccw
+        assert_eq!(cartesian_intersect(&b, &a, &c, &d), true);
+        // cw + cw
+        assert_eq!(cartesian_intersect(&a, &b, &d, &c), true);
+        // ccw + cw
+        assert_eq!(cartesian_intersect(&b, &a, &d, &c), true);
+    }
+    #[test]
+    fn simple_vwp_test() {
         // this LineString will have a self-intersection if the point with the
         // smallest associated area is removed
         // the associated triangle is (1, 2, 3), and has an area of 668.5
@@ -663,7 +679,7 @@ mod test {
         assert_eq!(simplified[0], correct_ls);
     }
     #[test]
-    fn tau() {
+    fn retained_vwp_test() {
         // we would expect outer[2] to be removed, as its associated area
         // is below epsilon. However, this causes a self-intersection
         // with the inner ring, which would also trigger removal of outer[1],
@@ -687,7 +703,7 @@ mod test {
         assert_eq!(simplified.exterior, outer);
     }
     #[test]
-    fn omicron() {
+    fn remove_inner_point_vwp_test() {
         // we would expect outer[2] to be removed, as its associated area
         // is below epsilon. However, this causes a self-intersection
         // with the inner ring, which would also trigger removal of outer[1],
@@ -719,8 +735,8 @@ mod test {
         assert_eq!(simplified.interiors[0], correct_inner);
     }
     #[test]
-    fn phi() {
-        // simplify a longer LineString, eliminating self-intersections
+    fn very_long_vwp_test() {
+        // simplify an 8k-point LineString, eliminating self-intersections
         let points = include!("test_fixtures/norway_main.rs");
         let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
         let gt = &GeomSettings {
