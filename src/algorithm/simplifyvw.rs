@@ -27,6 +27,8 @@ impl SLRtree {
     fn new() -> SLRtree {
         let conn = Connection::open_in_memory().unwrap();
         // create R* Tree
+        conn.execute("PRAGMA temp.cache_size = 10000;", &[],).unwrap();
+        conn.execute("PRAGMA temp.synchronous = 0;", &[],).unwrap();
         conn.execute(
             "CREATE VIRTUAL TABLE tree USING rtree(
             id,
@@ -38,13 +40,17 @@ impl SLRtree {
         conn.execute(
             "CREATE TABLE segments(
             id INTEGER PRIMARY KEY,
-            startX REAL,
-            startY REAL,
-            endX REAL,
-            endY REAL
+            startX REAL NOT NULL,
+            startY REAL NOT NULL,
+            endX REAL NOT NULL,
+            endY REAL NOT NULL
             )",
             &[],
         ).unwrap();
+        conn.execute("CREATE INDEX start_x ON segments(startX);", &[],).unwrap();
+        conn.execute("CREATE INDEX start_y ON segments(startY);", &[],).unwrap();
+        conn.execute("CREATE INDEX end_x ON segments(endX);", &[],).unwrap();
+        conn.execute("CREATE INDEX end_y ON segments(endY);", &[],).unwrap();
         SLRtree { conn: conn }
     }
     fn insert<T>(&mut self, line: &[Point<T>])
