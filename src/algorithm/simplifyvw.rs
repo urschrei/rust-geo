@@ -6,7 +6,7 @@ use algorithm::boundingbox::BoundingBox;
 
 use spade::SpadeFloat;
 
-use rusqlite::{Connection};
+use rusqlite::{Connection, Transaction};
 use rusqlite::types::{ToSql, FromSql};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ where
     T: Float + SpadeFloat,
 {
     from: Point<T>,
-    to: Point<T>
+    to: Point<T>,
 }
 
 impl SLRtree {
@@ -47,29 +47,13 @@ impl SLRtree {
         ).unwrap();
         SLRtree { conn: conn }
     }
-    fn insert<T>(&self, line: &[Point<T>])
+    fn insert<T>(&mut self, line: &[Point<T>])
     where
         T: Float + SpadeFloat + ToSql,
     {
-        for segment in line.windows(2) {
-            let ls = LineString(vec![segment[0], segment[1]]);
-            let bbox = ls.bbox().unwrap();
-            // insert bbox into R* Tree
-            self.conn
-                .execute(
-                    "INSERT INTO tree (minX, maxX, minY, maxY)
-                     VALUES (?1, ?2, ?3, ?4)",
-                    &[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax],
-                )
-                .unwrap();
-            self.conn
-                .execute(
-                    "INSERT INTO segments (startX, startY, endX, endY)
-                     VALUES (?1, ?2, ?3, ?4)",
-                    &[&segment[0].x(), &segment[0].y(), &segment[1].x(), &segment[1].y()],
-                )
-                .unwrap();
-        }
+        let tx = self.conn.transaction().unwrap();
+        bulk_insert(&tx, line);
+        tx.commit().unwrap();
     }
     fn query<T>(&self, start: &Point<T>, current: &Point<T>, end: &Point<T>) -> Vec<QResult<T>>
     where
@@ -87,7 +71,7 @@ impl SLRtree {
         let results = stmt.query_map(&[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax], |row| {
             QResult {
                 from: Point::new(row.get(0), row.get(2)),
-                to: Point::new(row.get(1), row.get(3))
+                to: Point::new(row.get(1), row.get(3)),
             }
         }).unwrap();
         let mut r = vec![];
@@ -97,15 +81,50 @@ impl SLRtree {
         r
     }
     fn delete<T>(&self, start: &Point<T>, end: &Point<T>)
-        where T: Float + SpadeFloat + ToSql,
+    where
+        T: Float + SpadeFloat + ToSql,
     {
         let mut stmt = self.conn
-            .prepare(
+            .prepare_cached(
                 "DELETE FROM segments WHERE startX==?1 AND endX==?2
                  AND startY==?3 AND endY==?4",
             )
             .unwrap();
-        let _ = stmt.execute(&[&start.x(), &end.x(), &start.y(), &end.y()]).unwrap();
+        let _ = stmt.execute(&[&start.x(), &end.x(), &start.y(), &end.y()])
+            .unwrap();
+    }
+}
+
+fn bulk_insert<T>(tx: &Transaction, line: &[Point<T>])
+where
+    T: Float + SpadeFloat + ToSql,
+{
+    let mut tree_insert = tx.prepare_cached(
+        "INSERT INTO tree (minX, maxX, minY, maxY)
+                 VALUES (?1, ?2, ?3, ?4)",
+    ).unwrap();
+    let mut segment_insert = tx.prepare_cached(
+        "INSERT INTO segments (startX, startY, endX, endY)
+                 VALUES (?1, ?2, ?3, ?4)",
+    ).unwrap();
+    for segment in line.windows(2) {
+        let ls = LineString(vec![segment[0], segment[1]]);
+        let bbox = ls.bbox().unwrap();
+        // insert segment bbox into R* Tree
+        tree_insert
+            .execute(&[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax])
+            .unwrap();
+        // insert segment into table
+        segment_insert
+            .execute(
+                &[
+                    &segment[0].x(),
+                    &segment[0].y(),
+                    &segment[1].x(),
+                    &segment[1].y(),
+                ],
+            )
+            .unwrap();
     }
 }
 
@@ -687,7 +706,7 @@ mod test {
 
     #[test]
     fn test_sqlite_rtree() {
-        let tree = SLRtree::new();
+        let mut tree = SLRtree::new();
         let points = vec![
             (10., 60.),
             (135., 68.),
