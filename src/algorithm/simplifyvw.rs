@@ -84,12 +84,20 @@ impl SLRtree {
                    AND minY<=?4 AND maxY>=?3",
             )
             .unwrap();
-        let results = stmt.query_map(&[&(bbox.xmin * bbreduce), &(bbox.xmax * bbincrease), &(bbox.ymin * bbreduce), &(bbox.ymax * bbincrease)], |row| {
-            QResult {
-                from: Point::new(row.get(0), row.get(2)),
-                to: Point::new(row.get(1), row.get(3)),
-            }
-        }).unwrap();
+        let results = stmt.query_map(
+            &[
+                &(bbox.xmin * bbreduce),
+                &(bbox.xmax * bbincrease),
+                &(bbox.ymin * bbreduce),
+                &(bbox.ymax * bbincrease),
+            ],
+            |row| {
+                QResult {
+                    from: Point::new(row.get(0), row.get(2)),
+                    to: Point::new(row.get(1), row.get(3)),
+                }
+            },
+        ).unwrap();
         let mut r = vec![];
         for result in results {
             r.push(result.unwrap());
@@ -102,15 +110,7 @@ impl SLRtree {
     {
         let mut stmt = self.conn
             .prepare_cached(
-                "DELETE FROM tree
-                 WHERE tree.id = (
-                     SELECT tree.id FROM segments INNER JOIN tree ON (tree.id = segments.id) 
-                     WHERE segments.startX = ?1
-                     AND segments.endX = ?2
-                     AND segments.startY = ?3
-                     AND segments.endY = ?4
-                 );
-                 DELETE FROM segments 
+                "DELETE FROM segments 
                  WHERE startX = ?1
                  AND endX = ?2
                  AND startY = ?3
@@ -893,7 +893,7 @@ mod test {
             geomtype: GeomType::Line,
         };
         let simplified = vwp_wrapper(&gt, &points_ls, None, &0.0005);
-        assert_eq!(simplified[0].len(), 3276);
+        assert_eq!(simplified[0].len(), 3277);
     }
     #[test]
     fn visvalingam_test_long() {
