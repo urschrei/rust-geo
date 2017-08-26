@@ -72,16 +72,19 @@ impl SLRtree {
     where
         T: Float + SpadeFloat + FromSql + ToSql,
     {
+        let bbreduce = T::from(0.999988).unwrap();
+        let bbincrease = T::from(1.000012).unwrap();
         let bbox = LineString(vec![*start, *current, *end]).bbox().unwrap();
+        // Overlap, as opposed to containing
         let mut stmt = self.conn
             .prepare(
                 "SELECT startX, endX, startY, endY FROM segments, tree
                  WHERE segments.id=tree.id
-                   AND minX>=?1 * 0.999988 AND maxX<=?2 * 1.999988
-                   AND minY>=?3 * 0.999988 AND maxY>=?4 * 1.999988",
+                   AND minX<=?2 AND maxX>=?1
+                   AND minY<=?4 AND maxY>=?3",
             )
             .unwrap();
-        let results = stmt.query_map(&[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax], |row| {
+        let results = stmt.query_map(&[&(bbox.xmin * bbreduce), &(bbox.xmax * bbincrease), &(bbox.ymin * bbreduce), &(bbox.ymax * bbincrease)], |row| {
             QResult {
                 from: Point::new(row.get(0), row.get(2)),
                 to: Point::new(row.get(1), row.get(3)),
@@ -745,10 +748,11 @@ mod test {
         tree.insert(&points_ls);
         let res = tree.query(&points_ls[0], &points_ls[1], &points_ls[2]);
         println!("Result: {:?}", res);
+        // remove first two segments
         let _ = tree.delete(&points_ls[0], &points_ls[1]);
+        let _ = tree.delete(&points_ls[1], &points_ls[2]);
         let res2 = tree.query(&points_ls[0], &points_ls[1], &points_ls[2]);
         println!("Result 2: {:?}", res2);
-        // assert_eq!(res2[0].id, 2);
     }
 
     #[test]
