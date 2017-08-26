@@ -6,12 +6,13 @@ use algorithm::boundingbox::BoundingBox;
 
 use spade::SpadeFloat;
 
-use rusqlite::{Connection, Transaction};
+use rusqlite::{Connection, Transaction, Error as DbError};
 use rusqlite::types::{ToSql, FromSql};
 
 #[derive(Debug)]
 struct SLRtree {
     conn: Connection,
+    indexed: bool
 }
 
 #[derive(Debug)]
@@ -27,9 +28,10 @@ impl SLRtree {
     fn new() -> SLRtree {
         let conn = Connection::open_in_memory().unwrap();
         // create R* Tree
-        conn.execute("PRAGMA temp.cache_size = 10000;", &[])
+        conn.execute("PRAGMA cache_size = 10000;", &[])
             .unwrap();
-        conn.execute("PRAGMA temp.synchronous = 0;", &[]).unwrap();
+        conn.execute("PRAGMA synchronous = 0;", &[]).unwrap();
+        conn.execute("PRAGMA count_changes = 0;", &[]).unwrap();
         conn.execute_batch(
             "BEGIN; 
              CREATE VIRTUAL TABLE tree USING rtree(
@@ -46,13 +48,9 @@ impl SLRtree {
                 endX REAL NOT NULL,
                 endY REAL NOT NULL
              );
-             CREATE INDEX start_x ON segments(startX);
-             CREATE INDEX start_y ON segments(startY);
-             CREATE INDEX end_x ON segments(endX);
-             CREATE INDEX end_y ON segments(endY);
              COMMIT;",
         ).unwrap();
-        SLRtree { conn: conn }
+        SLRtree { conn: conn, indexed: false }
     }
     fn insert<T>(&mut self, line: &[Point<T>])
     where
@@ -62,10 +60,20 @@ impl SLRtree {
         bulk_insert(&tx, line);
         tx.commit().unwrap();
     }
-    fn query<T>(&self, start: &Point<T>, current: &Point<T>, end: &Point<T>) -> Vec<QResult<T>>
+    fn query<T>(&mut self, start: &Point<T>, current: &Point<T>, end: &Point<T>) -> Result<Vec<QResult<T>>, DbError>
     where
         T: Float + SpadeFloat + FromSql + ToSql,
     {
+        if !self.indexed {
+            self.conn.execute_batch(
+                "BEGIN;
+                CREATE INDEX start_x ON segments(startX);
+                CREATE INDEX start_y ON segments(startY);
+                CREATE INDEX end_x ON segments(endX);
+                CREATE INDEX end_y ON segments(endY);
+                COMMIT;").unwrap();
+            self.indexed = true;
+        }
         let bbreduce = T::from(0.999988).unwrap();
         let bbincrease = T::from(1.000012).unwrap();
         let bbox = LineString(vec![*start, *current, *end]).bbox().unwrap();
@@ -78,7 +86,7 @@ impl SLRtree {
                    AND minY<=?4 AND maxY>=?3",
             )
             .unwrap();
-        let results = stmt.query_map(
+        let rows = stmt.query_map(
             &[
                 &(bbox.xmin * bbreduce),
                 &(bbox.xmax * bbincrease),
@@ -92,11 +100,7 @@ impl SLRtree {
                 }
             },
         ).unwrap();
-        let mut r = vec![];
-        for result in results {
-            r.push(result.unwrap());
-        }
-        r
+        rows.collect()
     }
     fn delete<T>(&self, start: &Point<T>, end: &Point<T>)
     where
@@ -493,7 +497,7 @@ where
 }
 
 // check whether a triangle's edges intersect with any other edges of the LineString
-fn tree_intersect<T>(tree: &SLRtree, triangle: &VScore<T>, orig: &[Point<T>]) -> bool
+fn tree_intersect<T>(tree: &mut SLRtree, triangle: &VScore<T>, orig: &[Point<T>]) -> bool
 where
     T: Float + SpadeFloat + FromSql + ToSql,
 {
@@ -502,6 +506,7 @@ where
     let point_c = orig[triangle.right];
     let candidates = tree.query(&point_a, &point_b, &point_c);
     candidates
+        .unwrap()
         .iter()
         .map(|c| {
             // triangle start point, end point
