@@ -77,7 +77,7 @@ impl SLRtree {
         let bbox = LineString(vec![*start, *current, *end]).bbox().unwrap();
         // Overlap, as opposed to containing
         let mut stmt = self.conn
-            .prepare(
+            .prepare_cached(
                 "SELECT startX, endX, startY, endY FROM segments, tree
                  WHERE segments.id=tree.id
                    AND minX<=?2 AND maxX>=?1
