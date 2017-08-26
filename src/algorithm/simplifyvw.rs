@@ -30,34 +30,28 @@ impl SLRtree {
         conn.execute("PRAGMA temp.cache_size = 10000;", &[])
             .unwrap();
         conn.execute("PRAGMA temp.synchronous = 0;", &[]).unwrap();
-        conn.execute(
-            "CREATE VIRTUAL TABLE tree USING rtree(
+        conn.execute_batch(
+            "BEGIN; 
+             CREATE VIRTUAL TABLE tree USING rtree(
                 id,
                 minX REAL NOT NULL,
                 maxX REAL NOT NULL,
                 minY REAL NOT NULL,
                 maxY REAL NOT NULL,
-            )",
-            &[],
-        ).unwrap();
-        conn.execute(
-            "CREATE TABLE segments(
+             );
+             CREATE TABLE segments(
                 id INTEGER PRIMARY KEY,
                 startX REAL NOT NULL,
                 startY REAL NOT NULL,
                 endX REAL NOT NULL,
                 endY REAL NOT NULL
-            )",
-            &[],
+             );
+             CREATE INDEX start_x ON segments(startX);
+             CREATE INDEX start_y ON segments(startY);
+             CREATE INDEX end_x ON segments(endX);
+             CREATE INDEX end_y ON segments(endY);
+             COMMIT;",
         ).unwrap();
-        conn.execute("CREATE INDEX start_x ON segments(startX);", &[])
-            .unwrap();
-        conn.execute("CREATE INDEX start_y ON segments(startY);", &[])
-            .unwrap();
-        conn.execute("CREATE INDEX end_x ON segments(endX);", &[])
-            .unwrap();
-        conn.execute("CREATE INDEX end_y ON segments(endY);", &[])
-            .unwrap();
         SLRtree { conn: conn }
     }
     fn insert<T>(&mut self, line: &[Point<T>])
