@@ -27,30 +27,37 @@ impl SLRtree {
     fn new() -> SLRtree {
         let conn = Connection::open_in_memory().unwrap();
         // create R* Tree
-        conn.execute("PRAGMA temp.cache_size = 10000;", &[],).unwrap();
-        conn.execute("PRAGMA temp.synchronous = 0;", &[],).unwrap();
+        conn.execute("PRAGMA temp.cache_size = 10000;", &[])
+            .unwrap();
+        conn.execute("PRAGMA temp.synchronous = 0;", &[]).unwrap();
         conn.execute(
             "CREATE VIRTUAL TABLE tree USING rtree(
-            id,
-            minX, maxX,
-            minY, maxY,
+                id,
+                minX REAL NOT NULL,
+                maxX REAL NOT NULL,
+                minY REAL NOT NULL,
+                maxY REAL NOT NULL,
             )",
             &[],
         ).unwrap();
         conn.execute(
             "CREATE TABLE segments(
-            id INTEGER PRIMARY KEY,
-            startX REAL NOT NULL,
-            startY REAL NOT NULL,
-            endX REAL NOT NULL,
-            endY REAL NOT NULL
+                id INTEGER PRIMARY KEY,
+                startX REAL NOT NULL,
+                startY REAL NOT NULL,
+                endX REAL NOT NULL,
+                endY REAL NOT NULL
             )",
             &[],
         ).unwrap();
-        conn.execute("CREATE INDEX start_x ON segments(startX);", &[],).unwrap();
-        conn.execute("CREATE INDEX start_y ON segments(startY);", &[],).unwrap();
-        conn.execute("CREATE INDEX end_x ON segments(endX);", &[],).unwrap();
-        conn.execute("CREATE INDEX end_y ON segments(endY);", &[],).unwrap();
+        conn.execute("CREATE INDEX start_x ON segments(startX);", &[])
+            .unwrap();
+        conn.execute("CREATE INDEX start_y ON segments(startY);", &[])
+            .unwrap();
+        conn.execute("CREATE INDEX end_x ON segments(endX);", &[])
+            .unwrap();
+        conn.execute("CREATE INDEX end_y ON segments(endY);", &[])
+            .unwrap();
         SLRtree { conn: conn }
     }
     fn insert<T>(&mut self, line: &[Point<T>])
@@ -70,8 +77,8 @@ impl SLRtree {
             .prepare(
                 "SELECT startX, endX, startY, endY FROM segments, tree
                  WHERE segments.id=tree.id
-                   AND minX>=?1 AND maxX<=?2
-                   AND minY>=?3 AND maxY>=?4",
+                   AND minX>=?1 * 0.999988 AND maxX<=?2 * 1.999988
+                   AND minY>=?3 * 0.999988 AND maxY>=?4 * 1.999988",
             )
             .unwrap();
         let results = stmt.query_map(&[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax], |row| {
@@ -92,8 +99,19 @@ impl SLRtree {
     {
         let mut stmt = self.conn
             .prepare_cached(
-                "DELETE FROM segments WHERE startX==?1 AND endX==?2
-                 AND startY==?3 AND endY==?4",
+                "DELETE FROM tree
+                 WHERE tree.id = (
+                     SELECT tree.id FROM segments INNER JOIN tree ON (tree.id = segments.id) 
+                     WHERE segments.startX = ?1
+                     AND segments.endX = ?2
+                     AND segments.startY = ?3
+                     AND segments.endY = ?4
+                 );
+                 DELETE FROM segments 
+                 WHERE startX = ?1
+                 AND endX = ?2
+                 AND startY = ?3
+                 AND endY = ?4;",
             )
             .unwrap();
         let _ = stmt.execute(&[&start.x(), &end.x(), &start.y(), &end.y()])
