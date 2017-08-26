@@ -67,10 +67,7 @@ impl SLRtree {
         if !self.indexed {
             self.conn.execute_batch(
                 "BEGIN;
-                CREATE INDEX start_x ON segments(startX);
-                CREATE INDEX start_y ON segments(startY);
-                CREATE INDEX end_x ON segments(endX);
-                CREATE INDEX end_y ON segments(endY);
+                CREATE INDEX idx_seg ON segments(startX, startY, endX, endY);
                 COMMIT;").unwrap();
             self.indexed = true;
         }
