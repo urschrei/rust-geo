@@ -12,7 +12,7 @@ use rusqlite::types::{ToSql, FromSql};
 #[derive(Debug)]
 struct SLRtree {
     conn: Connection,
-    indexed: bool
+    indexed: bool,
 }
 
 #[derive(Debug)]
@@ -28,8 +28,7 @@ impl SLRtree {
     fn new() -> SLRtree {
         let conn = Connection::open_in_memory().unwrap();
         // create R* Tree
-        conn.execute("PRAGMA cache_size = 10000;", &[])
-            .unwrap();
+        conn.execute("PRAGMA cache_size = 10000;", &[]).unwrap();
         conn.execute("PRAGMA synchronous = 0;", &[]).unwrap();
         conn.execute("PRAGMA count_changes = 0;", &[]).unwrap();
         conn.execute_batch(
@@ -50,7 +49,10 @@ impl SLRtree {
              );
              COMMIT;",
         ).unwrap();
-        SLRtree { conn: conn, indexed: false }
+        SLRtree {
+            conn: conn,
+            indexed: false,
+        }
     }
     fn insert<T>(&mut self, line: &[Point<T>])
     where
@@ -60,19 +62,29 @@ impl SLRtree {
         bulk_insert(&tx, line);
         tx.commit().unwrap();
     }
+    fn delete<T>(&mut self, line: &[(Point<T>, Point<T>)])
+    where
+        T: Float + SpadeFloat + ToSql,
+    {
+        let tx = self.conn.transaction().unwrap();
+        bulk_delete(&tx, line);
+        tx.commit().unwrap();
+    }
     fn query<T>(&mut self, start: &Point<T>, current: &Point<T>, end: &Point<T>) -> Result<Vec<QResult<T>>, DbError>
     where
         T: Float + SpadeFloat + FromSql + ToSql,
     {
+        // defer indexing until the initial data load has happened
         if !self.indexed {
-            self.conn.execute_batch(
-                "BEGIN;
+            self.conn
+                .execute_batch(
+                    "BEGIN;
                 CREATE INDEX idx_seg ON segments(startX, startY, endX, endY);
-                COMMIT;").unwrap();
+                COMMIT;",
+                )
+                .unwrap();
             self.indexed = true;
         }
-        let bbreduce = T::from(0.999988).unwrap();
-        let bbincrease = T::from(1.000012).unwrap();
         let bbox = LineString(vec![*start, *current, *end]).bbox().unwrap();
         // Overlap, as opposed to containing
         let mut stmt = self.conn
@@ -83,37 +95,13 @@ impl SLRtree {
                    AND minY<=?4 AND maxY>=?3",
             )
             .unwrap();
-        let rows = stmt.query_map(
-            &[
-                &(bbox.xmin * bbreduce),
-                &(bbox.xmax * bbincrease),
-                &(bbox.ymin * bbreduce),
-                &(bbox.ymax * bbincrease),
-            ],
-            |row| {
-                QResult {
-                    from: Point::new(row.get(0), row.get(2)),
-                    to: Point::new(row.get(1), row.get(3)),
-                }
-            },
-        ).unwrap();
+        let rows = stmt.query_map(&[&bbox.xmin, &bbox.xmax, &bbox.ymin, &bbox.ymax], |row| {
+            QResult {
+                from: Point::new(row.get(0), row.get(2)),
+                to: Point::new(row.get(1), row.get(3)),
+            }
+        }).unwrap();
         rows.collect()
-    }
-    fn delete<T>(&self, start: &Point<T>, end: &Point<T>)
-    where
-        T: Float + SpadeFloat + ToSql,
-    {
-        let mut stmt = self.conn
-            .prepare_cached(
-                "DELETE FROM segments 
-                 WHERE startX = ?1
-                 AND endX = ?2
-                 AND startY = ?3
-                 AND endY = ?4;",
-            )
-            .unwrap();
-        let _ = stmt.execute(&[&start.x(), &end.x(), &start.y(), &end.y()])
-            .unwrap();
     }
 }
 
@@ -146,6 +134,24 @@ where
                     &segment[1].y(),
                 ],
             )
+            .unwrap();
+    }
+}
+
+fn bulk_delete<T>(tx: &Transaction, line: &[(Point<T>, Point<T>)])
+where
+    T: Float + SpadeFloat + ToSql,
+{
+    let mut stmt = tx.prepare_cached(
+        "DELETE FROM segments 
+         WHERE startX = ?1
+         AND endX = ?2
+         AND startY = ?3
+         AND endY = ?4;",
+    )
+    .unwrap();
+    for &(start, end) in line {
+        let _ = stmt.execute(&[&start.x(), &end.x(), &start.y(), &end.y()])
             .unwrap();
     }
 }
@@ -428,10 +434,11 @@ where
         adjacent[smallest.current as usize] = (0, 0);
         counter -= 1;
         // remove stale segments from R* tree
-        // we have to call this twice because only one segment is returned at a time
-        // this should be OK because a point can only share at most two segments
-        tree.delete(&orig[smallest.left], &orig[smallest.current]);
-        tree.delete(&orig[smallest.current], &orig[smallest.right]);
+        tree.delete(&[
+            (orig[smallest.left], orig[smallest.current]),
+            (orig[smallest.current], orig[smallest.right])
+        ]);
+        // tree.delete(&orig[smallest.current], &orig[smallest.right]);
         // Now recompute the adjacent triangle(s), using left and right adjacent points
         let (ll, _) = adjacent[left as usize];
         let (_, rr) = adjacent[right as usize];
@@ -745,8 +752,10 @@ mod test {
         let res = tree.query(&points_ls[0], &points_ls[1], &points_ls[2]);
         println!("Result: {:?}", res);
         // remove first two segments
-        let _ = tree.delete(&points_ls[0], &points_ls[1]);
-        let _ = tree.delete(&points_ls[1], &points_ls[2]);
+        let _ = tree.delete(&[
+                (points_ls[0], points_ls[1]),
+                (points_ls[1], points_ls[2])
+            ]);
         let res2 = tree.query(&points_ls[0], &points_ls[1], &points_ls[2]);
         println!("Result 2: {:?}", res2);
     }
