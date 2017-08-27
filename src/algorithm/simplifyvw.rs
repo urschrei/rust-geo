@@ -28,7 +28,7 @@ impl SLRtree {
     fn new() -> SLRtree {
         let conn = Connection::open_in_memory().unwrap();
         // create R* Tree
-        conn.execute("PRAGMA cache_size = 10000;", &[]).unwrap();
+        conn.execute("PRAGMA cache_size = 100000;", &[]).unwrap();
         conn.execute("PRAGMA synchronous = 0;", &[]).unwrap();
         conn.execute("PRAGMA count_changes = 0;", &[]).unwrap();
         conn.execute_batch(
