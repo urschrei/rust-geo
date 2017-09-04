@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use num_traits::{Float, Signed, ToPrimitive};
 use num_traits::float::FloatConst;
-use types::{Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon};
+use types::{Point, MultiPoint, Line, LineString, MultiLineString, Polygon, MultiPolygon};
 use algorithm::contains::Contains;
 use algorithm::extremes::ExtremeIndices;
 use algorithm::intersects::Intersects;
@@ -255,6 +255,24 @@ impl<T> Distance<T, Point<T>> for LineString<T>
     where T: Float
 {
     /// Minimum distance from a LineString to a Point
+    fn distance(&self, point: &Point<T>) -> T {
+        point.distance(self)
+    }
+}
+
+impl<T> Distance<T, Line<T>> for Point<T>
+    where T: Float
+{
+    /// Minimum distance from a Point to a Line
+    fn distance(&self, line: &Line<T>) -> T {
+        line_segment_distance(&self, &line.start, &line.end)
+    }
+}
+
+impl<T> Distance<T, Point<T>> for Line<T>
+    where T: Float
+{
+    /// Minimum distance from a Line to a Point
     fn distance(&self, point: &Point<T>) -> T {
         point.distance(self)
     }
