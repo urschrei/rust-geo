@@ -75,6 +75,24 @@ impl From<Vec<usize>> for Extremes {
 
 /// A container for the coordinates of the minimum and maximum points of a [`Geometry`](enum.Geometry.html)
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
+impl<T> From<Bbox<T>> for Polygon<T>
+where
+    T: Float,
+{
+    fn from(bbox: Bbox<T>) -> Polygon<T> {
+        Polygon::new(
+            LineString(vec![
+                Point::new(bbox.xmin, bbox.ymin),
+                Point::new(bbox.xmax, bbox.ymin),
+                Point::new(bbox.xmax, bbox.ymax),
+                Point::new(bbox.xmin, bbox.ymax),
+                Point::new(bbox.xmin, bbox.ymin),
+            ]),
+            vec![],
+        )
+    }
+}
+
 pub struct ExtremePoint<T>
 where
     T: CoordinateType,
