@@ -24,7 +24,10 @@ where
 
 impl<T: Float> From<(T, T)> for Coordinate<T> {
     fn from(coords: (T, T)) -> Self {
-        Coordinate{ x: coords.0, y: coords.1 }
+        Coordinate {
+            x: coords.0,
+            y: coords.1,
+        }
     }
 }
 
@@ -58,6 +61,23 @@ impl From<Vec<usize>> for Extremes {
     }
 }
 
+impl<T> From<Bbox<T>> for Polygon<T>
+where
+    T: Float,
+{
+    fn from(bbox: Bbox<T>) -> Polygon<T> {
+        Polygon::new(
+            LineString(vec![
+                Point::new(bbox.xmin, bbox.ymin),
+                Point::new(bbox.xmax, bbox.ymin),
+                Point::new(bbox.xmax, bbox.ymax),
+                Point::new(bbox.xmin, bbox.ymax),
+                Point::new(bbox.xmin, bbox.ymin),
+            ]),
+            vec![],
+        )
+    }
+}
 
 pub struct ExtremePoint<T>
 where
@@ -305,7 +325,8 @@ where
 
 // These are required for Spade RTree
 impl<T> PointN for Point<T>
-    where T: Float + SpadeNum + Debug
+where
+    T: Float + SpadeNum + Debug,
 {
     type Scalar = T;
 
@@ -319,14 +340,14 @@ impl<T> PointN for Point<T>
         match index {
             0 => &self.0.x,
             1 => &self.0.y,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
     fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar {
         match index {
             0 => &mut self.0.x,
             1 => &mut self.0.y,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -454,7 +475,7 @@ impl<T: Float, IP: Into<Point<T>>> From<Vec<IP>> for MultiPoint<T> {
 
 impl<T: Float, IP: Into<Point<T>>> FromIterator<IP> for MultiPoint<T> {
     /// Collect the results of a `Point` iterator into a `MultiPoint`
-    fn from_iter<I: IntoIterator<Item=IP>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = IP>>(iter: I) -> Self {
         MultiPoint(iter.into_iter().map(|p| p.into()).collect())
     }
 }
@@ -583,7 +604,7 @@ impl<T: Float, IP: Into<Point<T>>> From<Vec<IP>> for LineString<T> {
 
 /// Turn a `Point`-ish iterator into a `LineString`.
 impl<T: Float, IP: Into<Point<T>>> FromIterator<IP> for LineString<T> {
-    fn from_iter<I: IntoIterator<Item=IP>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = IP>>(iter: I) -> Self {
         LineString(iter.into_iter().map(|p| p.into()).collect())
     }
 }
@@ -615,7 +636,7 @@ impl<T: Float, ILS: Into<LineString<T>>> From<ILS> for MultiLineString<T> {
 }
 
 impl<T: Float, ILS: Into<LineString<T>>> FromIterator<ILS> for MultiLineString<T> {
-    fn from_iter<I: IntoIterator<Item=ILS>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = ILS>>(iter: I) -> Self {
         MultiLineString(iter.into_iter().map(|ls| ls.into()).collect())
     }
 }
@@ -683,7 +704,7 @@ impl<T: Float, IP: Into<Polygon<T>>> From<IP> for MultiPolygon<T> {
 }
 
 impl<T: Float, IP: Into<Polygon<T>>> FromIterator<IP> for MultiPolygon<T> {
-    fn from_iter<I: IntoIterator<Item=IP>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = IP>>(iter: I) -> Self {
         MultiPolygon(iter.into_iter().map(|p| p.into()).collect())
     }
 }
@@ -714,7 +735,7 @@ impl<T: Float, IG: Into<Geometry<T>>> From<IG> for GeometryCollection<T> {
 }
 
 impl<T: Float, IG: Into<Geometry<T>>> FromIterator<IG> for GeometryCollection<T> {
-    fn from_iter<I: IntoIterator<Item=IG>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = IG>>(iter: I) -> Self {
         GeometryCollection(iter.into_iter().map(|g| g.into()).collect())
     }
 }
@@ -746,12 +767,36 @@ where
     GeometryCollection(GeometryCollection<T>),
 }
 
-impl<T: Float> From<Point<T>> for Geometry<T> { fn from(x: Point<T>) -> Geometry<T> { Geometry::Point(x) } }
-impl<T: Float> From<LineString<T>> for Geometry<T> { fn from(x: LineString<T>) -> Geometry<T> { Geometry::LineString(x) } }
-impl<T: Float> From<Polygon<T>> for Geometry<T> { fn from(x: Polygon<T>) -> Geometry<T> { Geometry::Polygon(x) } }
-impl<T: Float> From<MultiPoint<T>> for Geometry<T> { fn from(x: MultiPoint<T>) -> Geometry<T> { Geometry::MultiPoint(x) } }
-impl<T: Float> From<MultiLineString<T>> for Geometry<T> { fn from(x: MultiLineString<T>) -> Geometry<T> { Geometry::MultiLineString(x) } }
-impl<T: Float> From<MultiPolygon<T>> for Geometry<T> { fn from(x: MultiPolygon<T>) -> Geometry<T> { Geometry::MultiPolygon(x) } }
+impl<T: Float> From<Point<T>> for Geometry<T> {
+    fn from(x: Point<T>) -> Geometry<T> {
+        Geometry::Point(x)
+    }
+}
+impl<T: Float> From<LineString<T>> for Geometry<T> {
+    fn from(x: LineString<T>) -> Geometry<T> {
+        Geometry::LineString(x)
+    }
+}
+impl<T: Float> From<Polygon<T>> for Geometry<T> {
+    fn from(x: Polygon<T>) -> Geometry<T> {
+        Geometry::Polygon(x)
+    }
+}
+impl<T: Float> From<MultiPoint<T>> for Geometry<T> {
+    fn from(x: MultiPoint<T>) -> Geometry<T> {
+        Geometry::MultiPoint(x)
+    }
+}
+impl<T: Float> From<MultiLineString<T>> for Geometry<T> {
+    fn from(x: MultiLineString<T>) -> Geometry<T> {
+        Geometry::MultiLineString(x)
+    }
+}
+impl<T: Float> From<MultiPolygon<T>> for Geometry<T> {
+    fn from(x: MultiPolygon<T>) -> Geometry<T> {
+        Geometry::MultiPolygon(x)
+    }
+}
 
 #[cfg(test)]
 mod test {
