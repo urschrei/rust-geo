@@ -299,7 +299,21 @@ where
     }
 }
 
-// Polygon Distance
+// LineString distance
+impl<T> Distance<T, LineString<T>> for LineString<T>
+where
+    T: Float + FloatConst + Signed + SpadeFloat,
+{
+    fn distance(&self, other: &LineString<T>) -> T {
+        if self.intersects(other) {
+            return T::zero()
+        } else {
+            nearest_neighbour_distance(self, other)
+        }
+    }
+}
+
+// Polygon distance
 impl<T> Distance<T, Polygon<T>> for Polygon<T>
 where
     T: Float + FloatConst + Signed + SpadeFloat,
@@ -1419,6 +1433,15 @@ mod test {
         let outside = Polygon::new(shell_ls, vec![ring_ls]);
         let inside = Polygon::new(poly_in_ring_ls, vec![]);
         assert_eq!(outside.distance(&inside), 5.992772737231033);
+    }
+    #[test]
+    // two ring LineStrings; one encloses the other but they neither touch nor intersect
+    fn linestring_distance_test() {
+        let ring = include!("test_fixtures/ring.rs");
+        let ring_ls: LineString<f64> = ring.into();
+        let in_ring = include!("test_fixtures/poly_in_ring.rs");
+        let in_ring_ls: LineString<f64> = in_ring.into();
+        assert_eq!(ring_ls.distance(&in_ring_ls), 5.992772737231033);
     }
     #[test]
     fn test_vertex_line_distance() {
