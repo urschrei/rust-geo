@@ -32,3 +32,5 @@ pub mod rotate;
 pub mod translate;
 /// Apply a function to all coordinates
 pub mod map_coords;
+/// Helper functions for the "fast path" variant of the Polygon-Polygon distance method
+pub(crate) mod polygon_distance_fast_path;
