@@ -128,13 +128,13 @@ impl<T> Contains<Line<T>> for LineString<T>
 }
 
 #[derive(PartialEq, Clone, Debug)]
-enum PositionPoint {
+pub(crate) enum PositionPoint {
     OnBoundary,
     Inside,
     Outside,
 }
 
-fn get_position<T>(p: &Point<T>, linestring: &LineString<T>) -> PositionPoint
+pub(crate) fn get_position<T>(p: &Point<T>, linestring: &LineString<T>) -> PositionPoint
     where T: Float
 {
     // See: http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html

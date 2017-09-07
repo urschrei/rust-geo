@@ -4,7 +4,7 @@ use num_traits::{Float, Signed, ToPrimitive};
 use num_traits::float::FloatConst;
 use types::{Point, MultiPoint, Line, LineString, MultiLineString, Polygon, MultiPolygon};
 use algorithm::contains::Contains;
-use algorithm::intersects::Intersects;
+use algorithm::intersects::{Intersects};
 use algorithm::polygon_distance_fast_path::*;
 
 use spade::SpadeFloat;
@@ -322,7 +322,7 @@ where
             return T::zero();
         } else {
             // still a possibility that the LineString's inside an interior ring
-            if !other.interiors.is_empty() && Polygon::new(other.exterior.clone(), vec![]).contains(self) {
+            if !other.interiors.is_empty() && other.ring_contains_point(&self.0[0]) {
                 // check each ring distance, returning the minimum
                 let mut mindist: T = Float::max_value();
                 for ring in &other.interiors {
@@ -379,15 +379,14 @@ where
             return T::zero();
         }
         // Containment check
-        // TODO it would be great to avoid these clones
-        if Polygon::new(self.exterior.clone(), vec![]).contains(&poly2.exterior) {
+        if !self.interiors.is_empty() && self.ring_contains_point(&poly2.exterior.0[0]) {
             // check each ring distance, returning the minimum
             let mut mindist: T = Float::max_value();
             for ring in &self.interiors {
                 mindist = mindist.min(nearest_neighbour_distance(&poly2.exterior, &ring))
             }
             return mindist;
-        } else if Polygon::new(self.exterior.clone(), vec![]).contains(&self.exterior) {
+        } else if !poly2.interiors.is_empty() && poly2.ring_contains_point(&self.exterior.0[0]) {
             let mut mindist: T = Float::max_value();
             for ring in &poly2.interiors {
                 mindist = mindist.min(nearest_neighbour_distance(&self.exterior, &ring))
