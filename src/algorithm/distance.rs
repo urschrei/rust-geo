@@ -3,7 +3,7 @@ use std::collections::BinaryHeap;
 use num_traits::{Float, Signed, ToPrimitive};
 use num_traits::float::FloatConst;
 use types::{Point, MultiPoint, Line, LineString, MultiLineString, Polygon, MultiPolygon};
-use algorithm::contains::Contains;
+use algorithm::contains::{Contains, PositionPoint, get_position};
 use algorithm::intersects::{Intersects};
 use algorithm::polygon_distance_fast_path::*;
 
@@ -412,6 +412,73 @@ where
         T: Float,
     {
         self.distance(&Line::new(*p, *q))
+    }
+}
+
+// used to check the sign of a vec of floats
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ListSign {
+    Empty,
+    Positive,
+    Negative,
+    Mixed,
+}
+
+impl<T> Polygon<T>
+    where T: Float + Signed,
+{
+    // Wrap-around next and previous Polygon indices
+    pub(crate) fn next_vertex(&self, current_vertex: &usize) -> usize
+    where
+        T: Float,
+    {
+        (current_vertex + 1) % (self.exterior.0.len() - 1)
+    }
+    pub(crate) fn prev_vertex(&self, current_vertex: &usize) -> usize
+    where
+        T: Float,
+    {
+        (current_vertex + (self.exterior.0.len() - 1) - 1) % (self.exterior.0.len() - 1)
+    }
+    // Is this polygon convex?
+    fn convex(&self) -> bool {
+        let convex = self
+            .exterior
+            .0
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| {
+                let prev_1 = self.prev_vertex(&idx);
+                let prev_2 = self.prev_vertex(&prev_1);
+                cross_prod(&self.exterior.0[prev_2],
+                           &self.exterior.0[prev_1],
+                           &self.exterior.0[idx])
+            })
+            // accumulate and check cross-product result signs in a single pass
+            // positive implies ccw convexity, negative implies cw convexity
+            // anything else implies non-convexity
+            .fold(ListSign::Empty, |acc, n| {
+                match (acc, n.is_positive()) {
+                    (ListSign::Empty, true) | (ListSign::Positive, true) => ListSign::Positive,
+                    (ListSign::Empty, false) | (ListSign::Negative, false) => ListSign::Negative,
+                    _ => ListSign::Mixed
+                }
+            });
+        match convex {
+            ListSign::Mixed => false,
+            _ => true,
+        }
+    }
+    // This method handles a corner case in which a candidate polygon
+    // is disjoint because it's contained in the inner ring
+    // we work around this by checking that Polygons with inner rings don't
+    // contain a point from the candidate Polygon's outer shell in their simple representations
+    pub(crate) fn ring_contains_point(&self, p: &Point<T>) -> bool {
+        match get_position(p, &self.exterior) {
+            PositionPoint::Inside => true,
+            PositionPoint::OnBoundary => false,
+            PositionPoint::Outside => false
+        }
     }
 }
 
