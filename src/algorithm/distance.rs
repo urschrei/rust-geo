@@ -336,6 +336,37 @@ where
     }
 }
 
+// Polygon to LineString distance
+impl<T> Distance<T, LineString<T>> for Polygon<T>
+where
+    T: Float + FloatConst + Signed + SpadeFloat,
+{
+    fn distance(&self, other: &LineString<T>) -> T {
+        other.distance(self)
+    }
+}
+
+// Line to Polygon distance
+impl<T> Distance<T, Polygon<T>> for Line<T>
+where
+    T: Float + FloatConst + Signed + SpadeFloat,
+{
+    fn distance(&self, other: &Polygon<T>) -> T {
+        self.start.distance(other).min(self.end.distance(other))
+    }
+}
+
+// Polygon to Line distance
+impl<T> Distance<T, Line<T>> for Polygon<T>
+where
+    T: Float + FloatConst + Signed + SpadeFloat,
+{
+    fn distance(&self, other: &Line<T>) -> T {
+        other.distance(self)
+    }
+}
+
+// Polygon to Polygon distance
 impl<T> Distance<T, Polygon<T>> for Polygon<T>
 where
     T: Float + FloatConst + Signed + SpadeFloat,
@@ -348,6 +379,7 @@ where
             return T::zero();
         }
         // Containment check
+        // TODO it would be great to avoid these clones
         if Polygon::new(self.exterior.clone(), vec![]).contains(&poly2.exterior) {
             // check each ring distance, returning the minimum
             let mut mindist: T = Float::max_value();
