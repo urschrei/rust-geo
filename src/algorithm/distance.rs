@@ -322,7 +322,7 @@ where
             return T::zero();
         } else {
             // still a possibility that the LineString's inside an interior ring
-            if other.contains(self) {
+            if !other.interiors.is_empty() && Polygon::new(other.exterior.clone(), vec![]).contains(self) {
                 // check each ring distance, returning the minimum
                 let mut mindist: T = Float::max_value();
                 for ring in &other.interiors {
