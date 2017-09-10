@@ -9,6 +9,8 @@ use algorithm::polygon_distance_fast_path::*;
 
 use spade::SpadeFloat;
 use spade::primitives::SimpleEdge;
+use spade::delaunay::{ConstrainedDelaunayTriangulation, Subdivision};
+use spade::kernels::{FloatKernel, DelaunayKernel};
 use spade::rtree::RTree;
 
 /// Returns the distance between two geometries.
@@ -425,7 +427,8 @@ enum ListSign {
 }
 
 impl<T> Polygon<T>
-    where T: Float + Signed,
+where
+    T: Float + Signed,
 {
     // Wrap-around next and previous Polygon indices
     pub(crate) fn next_vertex(&self, current_vertex: &usize) -> usize
@@ -477,7 +480,7 @@ impl<T> Polygon<T>
         match get_position(p, &self.exterior) {
             PositionPoint::Inside => true,
             PositionPoint::OnBoundary => false,
-            PositionPoint::Outside => false
+            PositionPoint::Outside => false,
         }
     }
 }
@@ -513,6 +516,47 @@ where
     }
     // return smallest distance
     mindist_a.min(mindist_b)
+}
+
+fn delaunay_dist<T>(poly1: &Polygon<T>, poly2: &Polygon<T>) -> T
+where
+    T: Float + SpadeFloat + Signed,
+    FloatKernel: DelaunayKernel<T>,
+{
+    let mut float_delaunay: ConstrainedDelaunayTriangulation<Point<T>, FloatKernel> = ConstrainedDelaunayTriangulation::new();
+    for point in &poly1.exterior.0 {
+        float_delaunay.insert(*point);
+    }
+    // add constraints
+    for edge in poly1.exterior.lines() {
+        float_delaunay.add_new_constraint_edge(edge.start, edge.end);
+    }
+    let mut candidates = vec![];
+    for cedge in float_delaunay.edges() {
+        if float_delaunay.is_constraint_edge(cedge.fix()) {
+            let face = cedge.face();
+            // we've got a hit, build a new polygon from triangle containing the left face
+            let mut ls: Vec<Point<_>> = vec![];
+            for vertex in face.as_triangle().iter() {
+                ls.push(Point::new(vertex.x(), vertex.y()));
+            }
+            // close the polygon
+            let end = ls[0].clone();
+            ls.push(end);
+            let polygon = Polygon::new(ls.into(), vec![]);
+            candidates.push(polygon)
+        }
+    }
+    // check all candidates for containment
+    let mut mindist: T = Float::max_value();
+    for point in &poly2.exterior.0 {
+        for candidate in &candidates {
+            if candidate.contains(point) {
+                mindist = mindist.min(candidate.exterior.distance(&point));
+            }
+        }
+    }
+    mindist
 }
 
 #[cfg(test)]
@@ -593,8 +637,12 @@ mod test {
     fn linestring_polygon_line_test() {
         let p = |x, y| Point(Coordinate { x: x, y: y });
 
-        let poly = Polygon::new(LineString(vec![p(0., 0.), p(5., 0.), p(5., 6.), p(0., 6.), p(0., 0.)]),
-                                vec![LineString(vec![p(1., 1.), p(4., 1.), p(4., 4.), p(1., 4.), p(1., 1.)])]);
+        let poly = Polygon::new(
+            LineString(vec![p(0., 0.), p(5., 0.), p(5., 6.), p(0., 6.), p(0., 0.)]),
+            vec![
+                LineString(vec![p(1., 1.), p(4., 1.), p(4., 4.), p(1., 4.), p(1., 1.)]),
+            ],
+        );
         let ls = LineString(vec![p(3., 1.5), p(3., 3.)]);
         let ln = Line::new(p(3., 1.5), p(3., 3.));
         // LineString-Polygon and vice-versa
