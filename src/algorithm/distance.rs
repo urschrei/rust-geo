@@ -556,7 +556,7 @@ mod test {
         // get all triangles
         // for triangle in float_delaunay.triangles() {
             // println!("Triangle: {:?}", triangle.as_triangle());
-        }
+        // }
         // get infinite face
         let infinite_face = float_delaunay.infinite_face();
         // this is the convex hull
@@ -569,7 +569,6 @@ mod test {
             }
         }
     }
-
     // LineString-Polygon
     // Polygon-LineString
     // Polygon-Line
