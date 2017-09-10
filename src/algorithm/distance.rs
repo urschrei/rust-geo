@@ -541,6 +541,10 @@ mod test {
             ]),
             vec![],
         );
+        // let points = include!("test_fixtures/norway_main.rs");
+        // let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
+        // let ls = LineString(points_ls);
+        // let poly = Polygon::new(ls, vec![]);
         // insert points into triangulation
         for point in &poly.exterior.0 {
             float_delaunay.insert(*point);
@@ -549,25 +553,21 @@ mod test {
         for edge in poly.exterior.lines() {
             float_delaunay.add_new_constraint_edge(edge.start, edge.end);
         }
-        assert_eq!(float_delaunay.num_constraints(), 6);
-        println!("Number of triangles: {:?}", float_delaunay.num_triangles());
-        println!("Number of faces: {:?}", float_delaunay.num_faces());
-        for edge in float_delaunay.edges() {
-            println!("Edge: {:?}", (edge.from(), edge.to()));
+        // get all triangles
+        // for triangle in float_delaunay.triangles() {
+            // println!("Triangle: {:?}", triangle.as_triangle());
         }
-        for triangle in float_delaunay.triangles() {
-            println!("Triangle: {:?}", triangle);
-            println!("Vertices: {:?}", triangle.as_triangle());
-            println!("Adjacent Edges:");
-            for edge in triangle.adjacent_edges() {
-                println!("Edge: {:?}", (edge.from(), edge.to()));
+        // get infinite face
+        let infinite_face = float_delaunay.infinite_face();
+        // this is the convex hull
+        for edge in infinite_face.adjacent_edges() {
+            println!("New edge: {:?}", (edge.from(), edge.to()));
+            // Returns an iterator over all edges sharing the same face as this edge
+            for edge in edge.o_next_iterator().skip(1) {
+                // println!("Sharing edge: {:?}", ((edge.from().x(), edge.from().y()), (edge.to().x(), edge.to().y())));
+                println!("Sharing Edge: {:?}", (edge.from(), edge.to()));
             }
         }
-        // get infinite face, and iterate over adjacent faces
-        // let infinite_face = float_delaunay.infinite_face();
-        // for edge in infinite_face.adjacent_edges() {
-        //   println!("Edge: {:?}", edge);
-        // }
     }
 
     // LineString-Polygon
