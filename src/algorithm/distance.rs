@@ -541,6 +541,10 @@ mod test {
             ]),
             vec![],
         );
+
+        // distance is 5.570860145311555
+        let point = Point::new(190., 310.);
+
         // let points = include!("test_fixtures/norway_main.rs");
         // let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
         // let ls = LineString(points_ls);
@@ -553,26 +557,12 @@ mod test {
         for edge in poly.exterior.lines() {
             float_delaunay.add_new_constraint_edge(edge.start, edge.end);
         }
-        // get all triangles
-        // for triangle in float_delaunay.triangles() {
-            // println!("Triangle: {:?}", triangle.as_triangle());
-        // }
-        // get infinite face
-        // let infinite_face = float_delaunay.infinite_face();
-        // // this is the convex hull
-        // for edge in infinite_face.adjacent_edges() {
-        //     println!("New edge: {:?}", (edge.from(), edge.to()));
-        //     // Returns an iterator over all edges sharing the same face as this edge
-        //     for sedge in edge.o_next_iterator().skip(1) {
-        //         // println!("Sharing edge: {:?}", ((edge.from().x(), edge.from().y()), (edge.to().x(), edge.to().y())));
-        //         println!("Sharing Edge: {:?}", (sedge.from(), sedge.to()));
-        //     }
-        // }
+        let mut candidates = vec![];
         for cedge in float_delaunay.edges() {
             if float_delaunay.is_constraint_edge(cedge.fix()) {
-                println!("Edge is a constraint: {:?}", cedge);
+                // println!("Edge is a constraint: {:?}", cedge);
                 let face = cedge.face();
-                // we've got a hit, build a new polygon
+                // we've got a hit, build a new polygon from the left face
                 let mut ls: Vec<Point<_>> = vec![];
                 for vertex in face.as_triangle().iter() {
                     ls.push(Point::new(vertex.x(), vertex.y()));
@@ -581,8 +571,17 @@ mod test {
                 let end = ls[0].clone();
                 ls.push(end);
                 let polygon = Polygon::new(ls.into(), vec![]);
+                candidates.push(polygon)
             }
         }
+        // check all candidates for containment
+        let mut mindist = 100.;
+        for candidate in candidates {
+            if candidate.contains(&point) {
+                mindist = mindist.min(candidate.exterior.distance(&point));
+            }
+        }
+        assert_eq!(mindist, 5.570860145311555);
     }
 
     // LineString-Polygon
