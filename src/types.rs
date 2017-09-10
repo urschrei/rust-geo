@@ -9,7 +9,7 @@ use std::iter::{self, Iterator, FromIterator};
 
 use num_traits::{Float, ToPrimitive};
 use spade::SpadeNum;
-use spade::PointN;
+use spade::{PointN, TwoDimensional};
 
 pub static COORD_PRECISION: f32 = 1e-1; // 0.1m
 
@@ -322,6 +322,9 @@ where
         Point::new(self.x() - rhs.x(), self.y() - rhs.y())
     }
 }
+
+impl<T> TwoDimensional for Point<T>
+    where T: Float + SpadeNum + Debug {}
 
 // These are required for Spade RTree
 impl<T> PointN for Point<T>
