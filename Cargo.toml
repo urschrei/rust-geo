@@ -13,7 +13,7 @@ keywords = ["gis", "geo", "geography", "geospatial"]
 num-traits = "0.1"
 serde = "1.0"
 serde_derive = "1.0"
-spade = { git = "https://github.com/Stoeoef/spade.git", branch = "cdt" }
+spade = { git = "https://github.com/urschrei/spade.git", branch = "cdt" }
 
 [dev-dependencies]
 approx = "0.1.1"
