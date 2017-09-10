@@ -4,7 +4,7 @@ use num_traits::{Float, Signed, ToPrimitive};
 use num_traits::float::FloatConst;
 use types::{Point, MultiPoint, Line, LineString, MultiLineString, Polygon, MultiPolygon};
 use algorithm::contains::{Contains, PositionPoint, get_position};
-use algorithm::intersects::{Intersects};
+use algorithm::intersects::Intersects;
 use algorithm::polygon_distance_fast_path::*;
 
 use spade::SpadeFloat;
@@ -520,7 +520,55 @@ mod test {
     use types::{Coordinate, Point, MultiPoint, Line, LineString, MultiLineString, Polygon, MultiPolygon};
     use algorithm::distance::{Distance, line_segment_distance, nearest_neighbour_distance};
     use algorithm::convexhull::ConvexHull;
+    use spade::delaunay::{ConstrainedDelaunayTriangulation, Subdivision};
+    use spade::kernels::FloatKernel;
     use super::*;
+
+    #[test]
+    fn sigma() {
+        let mut float_delaunay: ConstrainedDelaunayTriangulation<Point<f64>, FloatKernel> = ConstrainedDelaunayTriangulation::new();
+        let p = |x, y| Point(Coordinate { x: x, y: y });
+        // square ccw polygon with two concave dents
+        let poly = Polygon::new(
+            LineString(vec![
+                p(200., 350.),
+                p(150., 330.),
+                p(100., 350.),
+                p(100., 250.),
+                p(200., 250.),
+                p(180., 300.),
+                p(200., 350.),
+            ]),
+            vec![],
+        );
+        // insert points into triangulation
+        for point in &poly.exterior.0 {
+            float_delaunay.insert(*point);
+        }
+        // add constraints
+        for edge in poly.exterior.lines() {
+            float_delaunay.add_new_constraint_edge(edge.start, edge.end);
+        }
+        assert_eq!(float_delaunay.num_constraints(), 6);
+        println!("Number of triangles: {:?}", float_delaunay.num_triangles());
+        println!("Number of faces: {:?}", float_delaunay.num_faces());
+        for edge in float_delaunay.edges() {
+            println!("Edge: {:?}", (edge.from(), edge.to()));
+        }
+        for triangle in float_delaunay.triangles() {
+            println!("Triangle: {:?}", triangle);
+            println!("Vertices: {:?}", triangle.as_triangle());
+            println!("Adjacent Edges:");
+            for edge in triangle.adjacent_edges() {
+                println!("Edge: {:?}", (edge.from(), edge.to()));
+            }
+        }
+        // get infinite face, and iterate over adjacent faces
+        // let infinite_face = float_delaunay.infinite_face();
+        // for edge in infinite_face.adjacent_edges() {
+        //   println!("Edge: {:?}", edge);
+        // }
+    }
 
     // LineString-Polygon
     // Polygon-LineString
