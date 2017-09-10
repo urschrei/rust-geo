@@ -558,17 +558,33 @@ mod test {
             // println!("Triangle: {:?}", triangle.as_triangle());
         // }
         // get infinite face
-        let infinite_face = float_delaunay.infinite_face();
-        // this is the convex hull
-        for edge in infinite_face.adjacent_edges() {
-            println!("New edge: {:?}", (edge.from(), edge.to()));
-            // Returns an iterator over all edges sharing the same face as this edge
-            for edge in edge.o_next_iterator().skip(1) {
-                // println!("Sharing edge: {:?}", ((edge.from().x(), edge.from().y()), (edge.to().x(), edge.to().y())));
-                println!("Sharing Edge: {:?}", (edge.from(), edge.to()));
+        // let infinite_face = float_delaunay.infinite_face();
+        // // this is the convex hull
+        // for edge in infinite_face.adjacent_edges() {
+        //     println!("New edge: {:?}", (edge.from(), edge.to()));
+        //     // Returns an iterator over all edges sharing the same face as this edge
+        //     for sedge in edge.o_next_iterator().skip(1) {
+        //         // println!("Sharing edge: {:?}", ((edge.from().x(), edge.from().y()), (edge.to().x(), edge.to().y())));
+        //         println!("Sharing Edge: {:?}", (sedge.from(), sedge.to()));
+        //     }
+        // }
+        for cedge in float_delaunay.edges() {
+            if float_delaunay.is_constraint_edge(cedge.fix()) {
+                println!("Edge is a constraint: {:?}", cedge);
+                let face = cedge.face();
+                // we've got a hit, build a new polygon
+                let mut ls: Vec<Point<_>> = vec![];
+                for vertex in face.as_triangle().iter() {
+                    ls.push(Point::new(vertex.x(), vertex.y()));
+                }
+                // close the polygon
+                let end = ls[0].clone();
+                ls.push(end);
+                let polygon = Polygon::new(ls.into(), vec![]);
             }
         }
     }
+
     // LineString-Polygon
     // Polygon-LineString
     // Polygon-Line
