@@ -518,10 +518,11 @@ where
     mindist_a.min(mindist_b)
 }
 
-fn delaunay_dist<T>(poly1: &Polygon<T>, poly2: &Polygon<T>) -> T
+pub fn delaunay_distance<T>(poly1: &Polygon<T>, poly2: &Polygon<T>) -> T
 where
-    T: Float + SpadeFloat + Signed,
     FloatKernel: DelaunayKernel<T>,
+    T: Float + SpadeFloat + Signed,
+
 {
     let mut float_delaunay: ConstrainedDelaunayTriangulation<Point<T>, FloatKernel> = ConstrainedDelaunayTriangulation::new();
     for point in &poly1.exterior.0 {
@@ -564,15 +565,11 @@ mod test {
     use types::{Coordinate, Point, MultiPoint, Line, LineString, MultiLineString, Polygon, MultiPolygon};
     use algorithm::distance::{Distance, line_segment_distance, nearest_neighbour_distance};
     use algorithm::convexhull::ConvexHull;
-    use spade::delaunay::{ConstrainedDelaunayTriangulation, Subdivision};
-    use spade::kernels::FloatKernel;
     use super::*;
-
     #[test]
     fn sigma() {
-        let mut float_delaunay: ConstrainedDelaunayTriangulation<Point<f64>, FloatKernel> = ConstrainedDelaunayTriangulation::new();
-        let p = |x, y| Point(Coordinate { x: x, y: y });
         // square ccw polygon with two concave dents
+        let p = |x, y| Point(Coordinate { x: x, y: y });
         let poly = Polygon::new(
             LineString(vec![
                 p(200., 350.),
@@ -585,47 +582,19 @@ mod test {
             ]),
             vec![],
         );
-
+        let poly2 = Polygon::new(
+            LineString(vec![
+                p(190., 310.),
+                p(220., 311.),
+                p(190., 305.),
+                p(190., 310.),
+            ]),
+            vec![],
+        );
+        let d1 = delaunay_distance(&poly, &poly2);
+        let d2 = delaunay_distance(&poly2, &poly);
         // distance is 5.570860145311555
-        let point = Point::new(190., 310.);
-
-        // let points = include!("test_fixtures/norway_main.rs");
-        // let points_ls: Vec<_> = points.iter().map(|e| Point::new(e[0], e[1])).collect();
-        // let ls = LineString(points_ls);
-        // let poly = Polygon::new(ls, vec![]);
-        // insert points into triangulation
-        for point in &poly.exterior.0 {
-            float_delaunay.insert(*point);
-        }
-        // add constraints
-        for edge in poly.exterior.lines() {
-            float_delaunay.add_new_constraint_edge(edge.start, edge.end);
-        }
-        let mut candidates = vec![];
-        for cedge in float_delaunay.edges() {
-            if float_delaunay.is_constraint_edge(cedge.fix()) {
-                // println!("Edge is a constraint: {:?}", cedge);
-                let face = cedge.face();
-                // we've got a hit, build a new polygon from the left face
-                let mut ls: Vec<Point<_>> = vec![];
-                for vertex in face.as_triangle().iter() {
-                    ls.push(Point::new(vertex.x(), vertex.y()));
-                }
-                // close the polygon
-                let end = ls[0].clone();
-                ls.push(end);
-                let polygon = Polygon::new(ls.into(), vec![]);
-                candidates.push(polygon)
-            }
-        }
-        // check all candidates for containment
-        let mut mindist = 100.;
-        for candidate in candidates {
-            if candidate.contains(&point) {
-                mindist = mindist.min(candidate.exterior.distance(&point));
-            }
-        }
-        assert_eq!(mindist, 5.570860145311555);
+        assert_eq!(d1.min(d2), 5.570860145311555);
     }
 
     // LineString-Polygon
