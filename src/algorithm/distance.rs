@@ -528,10 +528,13 @@ where
     for point in &poly1.exterior.0 {
         float_delaunay.insert(*point);
     }
-    // add constraints
-    for edge in poly1.exterior.lines() {
-        float_delaunay.add_new_constraint_edge(edge.start, edge.end);
+    // add constraints. This leaves the ring open
+    for (i, _) in poly1.exterior.0.windows(2).take(poly1.exterior.0.len() - 2).enumerate() {
+        println!("idxs: {:?}", (i, i + 1));
+        float_delaunay.add_constraint(i as usize, (i + 1) as usize);
     }
+    // and explicitly close the ring
+    float_delaunay.add_constraint(poly1.exterior.0.len() - 2 as usize, 0 as usize);
     let mut candidates = vec![];
     for cedge in float_delaunay.edges() {
         if float_delaunay.is_constraint_edge(cedge.fix()) {
