@@ -10,7 +10,7 @@ use algorithm::polygon_distance_fast_path::*;
 
 use spade::SpadeFloat;
 use spade::primitives::SimpleEdge;
-use spade::delaunay::{ConstrainedDelaunayTriangulation, Subdivision};
+use spade::delaunay::{ConstrainedDelaunayTriangulation};
 use spade::kernels::{FloatKernel, DelaunayKernel};
 use spade::rtree::RTree;
 
@@ -564,17 +564,16 @@ where
         float_delaunay.add_constraint(i as usize, (i + 1) as usize);
     }
     // and explicitly close the ring
+    float_delaunay.add_constraint(poly1.exterior.0.len() - 2 as usize, 0 as usize);
 
     let mut triangles = vec![];
     float_delaunay.add_constraint(poly1.exterior.0.len() - 2 as usize, 0 as usize);
     for edge in float_delaunay.infinite_face().adjacent_edges() {
-        // println!("new edge: {:?}", (edge.from().x(), edge.from().y(), edge.to().x(), edge.to().y()));
         for oedge in edge.sym().o_next_iterator() {
-            // push the 'to' coordinates into a vec, and clone last coord into first, totalling 4
+            // push the 'to' coordinates into a vec
             triangles.push(oedge.to());
         }
     }
-    // println!("Triangles: {:?}", triangles);
 
     // check all candidates for containment
     let mut mindist: T = Float::max_value();
@@ -633,17 +632,15 @@ mod test {
         );
         let poly2 = Polygon::new(
             LineString(vec![
-                p(190., 310.),
-                p(220., 311.),
-                p(190., 305.),
-                p(190., 310.),
+            p(220., 310.), p(250., 311.), p(220., 305.), p(220., 310.)
             ]),
             vec![],
         );
         let d1 = delaunay_distance(&poly, &poly2);
         let d2 = delaunay_distance(&poly2, &poly);
         // distance is 5.570860145311555
-        assert_eq!(d1.min(d2), 5.570860145311555);
+        // assert_eq!(d1.min(d2), 5.570860145311555);
+        assert_eq!(d1.min(d2), 33.42516087186934);
     }
 
     // LineString-Polygon
