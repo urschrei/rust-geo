@@ -561,33 +561,36 @@ where
     }
     // add constraints. This leaves the ring open
     for (i, _) in poly1.exterior.0.windows(2).take(poly1.exterior.0.len() - 2).enumerate() {
-        println!("idxs: {:?}", (i, i + 1));
         float_delaunay.add_constraint(i as usize, (i + 1) as usize);
     }
     // and explicitly close the ring
+
+    let mut triangles = vec![];
     float_delaunay.add_constraint(poly1.exterior.0.len() - 2 as usize, 0 as usize);
-    let mut candidates = vec![];
-    for cedge in float_delaunay.edges() {
-        if float_delaunay.is_constraint_edge(cedge.fix()) {
-            let face = cedge.face();
-            // we've got a hit, build a new polygon from triangle containing the left face
-            let mut ls: Vec<Point<_>> = vec![];
-            for vertex in face.as_triangle().iter() {
-                ls.push(Point::new(vertex.x(), vertex.y()));
-            }
-            // close the polygon
-            let end = ls[0].clone();
-            ls.push(end);
-            let polygon = Polygon::new(ls.into(), vec![]);
-            candidates.push(polygon)
+    for edge in float_delaunay.infinite_face().adjacent_edges() {
+        // println!("new edge: {:?}", (edge.from().x(), edge.from().y(), edge.to().x(), edge.to().y()));
+        for oedge in edge.sym().o_next_iterator() {
+            // push the 'to' coordinates into a vec, and clone last coord into first, totalling 4
+            triangles.push(oedge.to());
         }
     }
+    // println!("Triangles: {:?}", triangles);
+
     // check all candidates for containment
     let mut mindist: T = Float::max_value();
     for point in &poly2.exterior.0 {
-        for candidate in &candidates {
-            if candidate.contains(point) {
-                mindist = mindist.min(candidate.exterior.distance(&point));
+        for candidate in triangles.chunks(3) {
+            let points: Vec<_> = candidate.iter().collect();
+            if barycentric_containment(point, points[0], points[1], points[2]) {
+                // TODO: clean this up
+                let p1 = Point::new(points[0].x(), points[0].y());
+                let p2 = Point::new(points[1].x(), points[1].y());
+                let p3 = Point::new(points[2].x(), points[2].y());
+                let mut ls = vec![];
+                ls.push(p1);
+                ls.push(p2);
+                ls.push(p3);
+                mindist = mindist.min(LineString::from(ls).distance(point));
             }
         }
     }
