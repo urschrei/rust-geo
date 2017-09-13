@@ -5,6 +5,7 @@ use num_traits::float::FloatConst;
 use types::{Point, MultiPoint, Line, LineString, MultiLineString, Polygon, MultiPolygon};
 use algorithm::contains::{Contains, PositionPoint, get_position};
 use algorithm::intersects::Intersects;
+use algorithm::map_coords::MapCoords;
 use algorithm::polygon_distance_fast_path::*;
 
 use spade::SpadeFloat;
@@ -518,6 +519,36 @@ where
     mindist_a.min(mindist_b)
 }
 
+
+// fast point-in-triangle check
+fn barycentric_containment<T>(point: &Point<T>, a: &Point<T>, b: &Point<T>, c: &Point<T>) -> bool
+    where T: Float
+{
+    // these aren't points, they're vectors
+    // we can't subtract points, but we can add points with reversed signs
+    // cheat by reversing sign of a.
+    let minus_a = a.map_coords(&|&(x, y)| (x * -T::one(), y * -T::one()));
+
+    let v0 = *c + minus_a;
+    let v1 = *b + minus_a;
+    let v2 = *point + minus_a;
+
+    // Compute dot products
+    let dot00 = v0.dot(&v0);
+    let dot01 = v0.dot(&v1);
+    let dot02 = v0.dot(&v2);
+    let dot11 = v1.dot(&v1);
+    let dot12 = v1.dot(&v2);
+
+    // Compute barycentric coordinates
+    let inv_denom = T::one() / (dot00 * dot11 - dot01 * dot01);
+    let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
+    let v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
+
+    // Check if point is in triangle
+    (u >= T::zero()) && (v >= T::zero()) && (u + v < T::one())
+}
+
 pub fn delaunay_distance<T>(poly1: &Polygon<T>, poly2: &Polygon<T>) -> T
 where
     FloatKernel: DelaunayKernel<T>,
@@ -569,6 +600,18 @@ mod test {
     use algorithm::distance::{Distance, line_segment_distance, nearest_neighbour_distance};
     use algorithm::convexhull::ConvexHull;
     use super::*;
+    #[test]
+    fn triangle_check() {
+        let p1 = Point::new(0.0, 0.0);
+        let p2 = Point::new(1.0, 0.0);
+        let p3 = Point::new(1.0, 1.0);
+        let in_candidate = Point::new(0.5, 0.1);
+        let out_candidate = Point::new(2.0, 2.0);
+        let inside = barycentric_containment(&in_candidate, &p1, &p2, &p3);
+        let outside = barycentric_containment(&out_candidate, &p1, &p2, &p3);
+        assert_eq!(inside, true);
+        assert_eq!(outside, false);
+    }
     #[test]
     fn sigma() {
         // square ccw polygon with two concave dents
