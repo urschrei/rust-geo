@@ -10,7 +10,7 @@ use algorithm::polygon_distance_fast_path::*;
 
 use spade::SpadeFloat;
 use spade::primitives::SimpleEdge;
-use spade::delaunay::{ConstrainedDelaunayTriangulation};
+use spade::delaunay::ConstrainedDelaunayTriangulation;
 use spade::kernels::{FloatKernel, DelaunayKernel};
 use spade::rtree::RTree;
 
@@ -522,7 +522,8 @@ where
 
 // fast point-in-triangle check
 fn barycentric_containment<T>(point: &Point<T>, a: &Point<T>, b: &Point<T>, c: &Point<T>) -> bool
-    where T: Float
+where
+    T: Float,
 {
     // these aren't points, they're vectors
     // we can't subtract points, but we can add points with reversed signs
@@ -553,14 +554,19 @@ pub fn delaunay_distance<T>(poly1: &Polygon<T>, poly2: &Polygon<T>) -> T
 where
     FloatKernel: DelaunayKernel<T>,
     T: Float + SpadeFloat + Signed,
-
 {
     let mut float_delaunay: ConstrainedDelaunayTriangulation<Point<T>, FloatKernel> = ConstrainedDelaunayTriangulation::new();
     for point in &poly1.exterior.0 {
         float_delaunay.insert(*point);
     }
     // add constraints. This leaves the ring open
-    for (i, _) in poly1.exterior.0.windows(2).take(poly1.exterior.0.len() - 2).enumerate() {
+    for (i, _) in poly1
+        .exterior
+        .0
+        .windows(2)
+        .take(poly1.exterior.0.len() - 2)
+        .enumerate()
+    {
         float_delaunay.add_constraint(i as usize, (i + 1) as usize);
     }
     // and explicitly close the ring
@@ -632,7 +638,10 @@ mod test {
         );
         let poly2 = Polygon::new(
             LineString(vec![
-            p(220., 310.), p(250., 311.), p(220., 305.), p(220., 310.)
+                p(220., 310.),
+                p(250., 311.),
+                p(220., 305.),
+                p(220., 310.),
             ]),
             vec![],
         );
