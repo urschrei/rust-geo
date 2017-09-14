@@ -321,7 +321,7 @@ where
     T: Float + FloatConst + Signed + SpadeFloat,
 {
     fn distance(&self, other: &Polygon<T>) -> T {
-        if self.intersects(other) || other.contains(self) {
+        if other.intersects(self) || other.contains(self) {
             return T::zero();
         } else {
             // still a possibility that the LineString's inside an interior ring
