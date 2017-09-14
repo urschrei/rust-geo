@@ -3,6 +3,7 @@ use num_traits::{Float, ToPrimitive};
 use types::{COORD_PRECISION, Point, Line, LineString, Polygon, MultiPolygon, Bbox};
 use algorithm::intersects::Intersects;
 use algorithm::distance::Distance;
+use algorithm::map_coords::MapCoords;
 
 ///  Checks if the geometry A is completely inside the B geometry.
 
@@ -175,14 +176,56 @@ fn get_position<T>(p: &Point<T>, linestring: &LineString<T>) -> PositionPoint
     }
 }
 
+// if a Polygon has three vertices and no holes, we can check for containment very quickly
+// see: http://blackpawn.com/texts/pointinpoly/
+fn barycentric_containment<T>(point: &Point<T>, a: &Point<T>, b: &Point<T>, c: &Point<T>) -> PositionPoint
+    where T: Float
+{
+    // these aren't points, they're vectors
+    // we can't subtract points, but we can add points with reversed signs
+    // cheat by reversing sign of a.
+    let minus_a = a.map_coords(&|&(x, y)| (x * -T::one(), y * -T::one()));
+
+    let v0 = *c + minus_a;
+    let v1 = *b + minus_a;
+    let v2 = *point + minus_a;
+
+    // Compute dot products
+    let dot00 = v0.dot(&v0);
+    let dot01 = v0.dot(&v1);
+    let dot02 = v0.dot(&v2);
+    let dot11 = v1.dot(&v1);
+    let dot12 = v1.dot(&v2);
+
+    // Compute barycentric coordinates
+    let inv_denom = T::one() / (dot00 * dot11 - dot01 * dot01);
+    let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
+    let v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
+
+    // Check if point is in triangle
+    if (u >= T::zero()) && (v >= T::zero()) && (u + v < T::one()) {
+        PositionPoint::Inside
+    } else {
+        PositionPoint::Outside
+    }
+}
+
 impl<T> Contains<Point<T>> for Polygon<T>
     where T: Float
 {
     fn contains(&self, p: &Point<T>) -> bool {
-        match get_position(p, &self.exterior) {
-            PositionPoint::OnBoundary => false,
-            PositionPoint::Outside => false,
-            _ => self.interiors.iter().all(|ls| get_position(p, ls) == PositionPoint::Outside),
+        // fast path for simple triangular polygons
+        if self.exterior.0.len() == 4 && self.interiors.is_empty() {
+            match barycentric_containment(p, &self.exterior.0[0], &self.exterior.0[1], &self.exterior.0[2]) {
+                PositionPoint::Inside => true,
+                _ => false
+            }
+        } else {
+            match get_position(p, &self.exterior) {
+                PositionPoint::OnBoundary => false,
+                PositionPoint::Outside => false,
+                _ => self.interiors.iter().all(|ls| get_position(p, ls) == PositionPoint::Outside),
+            }
         }
     }
 }
@@ -255,6 +298,22 @@ impl<T> Contains<Bbox<T>> for Bbox<T>
 mod test {
     use types::{Coordinate, Point, Line, LineString, Polygon, MultiPolygon, Bbox};
     use algorithm::contains::Contains;
+    use super::{barycentric_containment, PositionPoint};
+    #[test]
+    fn triangle_check() {
+        let p1 = Point::new(0.0, 0.0);
+        let p2 = Point::new(1.0, 0.0);
+        let p3 = Point::new(1.0, 1.0);
+        let in_candidate = Point::new(0.5, 0.1);
+        let out_candidate = Point::new(2.0, 2.0);
+        let boundary_candidate = Point::new(0.5, 0.0);
+        let inside = barycentric_containment(&in_candidate, &p1, &p2, &p3);
+        let outside = barycentric_containment(&out_candidate, &p1, &p2, &p3);
+        let boundary = barycentric_containment(&boundary_candidate, &p1, &p2, &p3);
+        assert_eq!(inside, PositionPoint::Inside);
+        assert_eq!(outside, PositionPoint::Outside);
+        assert_eq!(boundary, PositionPoint::Outside);
+    }
     #[test]
     // V doesn't contain rect because two of its edges intersect with V's exterior boundary
     fn polygon_does_not_contain_polygon() {
