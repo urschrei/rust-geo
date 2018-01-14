@@ -158,7 +158,9 @@ where
                     - (a.end.y() - a.start.y()) * (a.start.x() - b.start.x());
                 let u_a = ua_t / u_b;
                 let u_b = ub_t / u_b;
-                if (T::zero() <= u_a) && (u_a <= T::one()) && (T::zero() <= u_b) && (u_b <= T::one()) {
+                if (T::zero() <= u_a) && (u_a <= T::one()) && (T::zero() <= u_b)
+                    && (u_b <= T::one())
+                {
                     return true;
                 }
             }
@@ -187,7 +189,8 @@ where
 }
 
 impl<T> Intersects<Polygon<T>> for LineString<T>
-    where T: Float
+where
+    T: Float,
 {
     fn intersects(&self, polygon: &Polygon<T>) -> bool {
         polygon.intersects(self)

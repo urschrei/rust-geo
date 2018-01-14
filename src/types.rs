@@ -34,7 +34,10 @@ where
 
 impl<T: CoordinateType> From<(T, T)> for Coordinate<T> {
     fn from(coords: (T, T)) -> Self {
-        Coordinate{ x: coords.0, y: coords.1 }
+        Coordinate {
+            x: coords.0,
+            y: coords.1,
+        }
     }
 }
 
@@ -70,7 +73,7 @@ impl From<Vec<usize>> for Extremes {
     }
 }
 
-/// A container for the coordinates of the minimum and maximum points of a [`Geometry`](enum.Geometry.html)
+/// Construct a `Polygon` from a `Bbox`
 impl<T> From<Bbox<T>> for Polygon<T>
 where
     T: Float,
@@ -366,7 +369,8 @@ where
 
 // These are required for Spade RTree
 impl<T> PointN for Point<T>
-    where T: Float + SpadeNum + Debug
+where
+    T: Float + SpadeNum + Debug,
 {
     type Scalar = T;
 
@@ -380,14 +384,14 @@ impl<T> PointN for Point<T>
         match index {
             0 => &self.0.x,
             1 => &self.0.y,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
     fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar {
         match index {
             0 => &mut self.0.x,
             1 => &mut self.0.y,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -419,11 +423,27 @@ where
     /// assert_eq!(1000., bbox.ymax);
     /// ```
     fn add(self, rhs: Bbox<T>) -> Bbox<T> {
-        Bbox{
-            xmin: if self.xmin <= rhs.xmin {self.xmin} else {rhs.xmin},
-            xmax: if self.xmax >= rhs.xmax {self.xmax} else {rhs.xmax},
-            ymin: if self.ymin <= rhs.ymin {self.ymin} else {rhs.ymin},
-            ymax: if self.ymax >= rhs.ymax {self.ymax} else {rhs.ymax},
+        Bbox {
+            xmin: if self.xmin <= rhs.xmin {
+                self.xmin
+            } else {
+                rhs.xmin
+            },
+            xmax: if self.xmax >= rhs.xmax {
+                self.xmax
+            } else {
+                rhs.xmax
+            },
+            ymin: if self.ymin <= rhs.ymin {
+                self.ymin
+            } else {
+                rhs.ymin
+            },
+            ymax: if self.ymax >= rhs.ymax {
+                self.ymax
+            } else {
+                rhs.ymax
+            },
         }
     }
 }
@@ -446,11 +466,27 @@ where
     /// assert_eq!(10., bbox0.ymin);
     /// assert_eq!(1000., bbox0.ymax);
     /// ```
-    fn add_assign(&mut self, rhs: Bbox<T>){
-        self.xmin = if self.xmin <= rhs.xmin {self.xmin} else {rhs.xmin};
-        self.xmax = if self.xmax >= rhs.xmax {self.xmax} else {rhs.xmax};
-        self.ymin = if self.ymin <= rhs.ymin {self.ymin} else {rhs.ymin};
-        self.ymax = if self.ymax >= rhs.ymax {self.ymax} else {rhs.ymax};
+    fn add_assign(&mut self, rhs: Bbox<T>) {
+        self.xmin = if self.xmin <= rhs.xmin {
+            self.xmin
+        } else {
+            rhs.xmin
+        };
+        self.xmax = if self.xmax >= rhs.xmax {
+            self.xmax
+        } else {
+            rhs.xmax
+        };
+        self.ymin = if self.ymin <= rhs.ymin {
+            self.ymin
+        } else {
+            rhs.ymin
+        };
+        self.ymax = if self.ymax >= rhs.ymax {
+            self.ymax
+        } else {
+            rhs.ymax
+        };
     }
 }
 
@@ -488,7 +524,7 @@ impl<T: CoordinateType, IP: Into<Point<T>>> From<Vec<IP>> for MultiPoint<T> {
 
 impl<T: CoordinateType, IP: Into<Point<T>>> FromIterator<IP> for MultiPoint<T> {
     /// Collect the results of a `Point` iterator into a `MultiPoint`
-    fn from_iter<I: IntoIterator<Item=IP>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = IP>>(iter: I) -> Self {
         MultiPoint(iter.into_iter().map(|p| p.into()).collect())
     }
 }
@@ -510,7 +546,7 @@ where
     T: CoordinateType,
 {
     pub start: Point<T>,
-    pub end: Point<T>
+    pub end: Point<T>,
 }
 
 impl<T> Line<T>
@@ -528,7 +564,10 @@ where
     /// assert_eq!(line.end, Point::new(1., 2.));
     /// ```
     pub fn new(start: Point<T>, end: Point<T>) -> Line<T> {
-        Line {start: start, end: end}
+        Line {
+            start: start,
+            end: end,
+        }
     }
 }
 
@@ -694,7 +733,7 @@ where
     T: CoordinateType,
 {
     pub exterior: LineString<T>,
-    pub interiors: Vec<LineString<T>>
+    pub interiors: Vec<LineString<T>>,
 }
 
 impl<T> Polygon<T>
@@ -715,7 +754,10 @@ where
     /// assert_eq!(p.interiors, interiors);
     /// ```
     pub fn new(exterior: LineString<T>, interiors: Vec<LineString<T>>) -> Polygon<T> {
-        Polygon { exterior: exterior, interiors: interiors }
+        Polygon {
+            exterior: exterior,
+            interiors: interiors,
+        }
     }
     /// Wrap-around previous-vertex
     fn previous_vertex(&self, current_vertex: &usize) -> usize
@@ -853,7 +895,7 @@ where
     MultiPoint(MultiPoint<T>),
     MultiLineString(MultiLineString<T>),
     MultiPolygon(MultiPolygon<T>),
-    GeometryCollection(GeometryCollection<T>)
+    GeometryCollection(GeometryCollection<T>),
 }
 
 /// The result of trying to find the closest spot on an object to a point.
@@ -997,7 +1039,7 @@ impl<T: CoordinateType> Geometry<T> {
 
 #[cfg(test)]
 mod test {
-    use ::types::*;
+    use types::*;
 
     #[test]
     fn type_test() {
@@ -1029,10 +1071,20 @@ mod test {
 
     #[test]
     fn polygon_new_test() {
-        let exterior = LineString(vec![Point::new(0., 0.), Point::new(1., 1.),
-                                       Point::new(1., 0.), Point::new(0., 0.)]);
-        let interiors = vec![LineString(vec![Point::new(0.1, 0.1), Point::new(0.9, 0.9),
-                                             Point::new(0.9, 0.1), Point::new(0.1, 0.1)])];
+        let exterior = LineString(vec![
+            Point::new(0., 0.),
+            Point::new(1., 1.),
+            Point::new(1., 0.),
+            Point::new(0., 0.),
+        ]);
+        let interiors = vec![
+            LineString(vec![
+                Point::new(0.1, 0.1),
+                Point::new(0.9, 0.9),
+                Point::new(0.9, 0.1),
+                Point::new(0.1, 0.1),
+            ]),
+        ];
         let p = Polygon::new(exterior.clone(), interiors.clone());
 
         assert_eq!(p.exterior, exterior);

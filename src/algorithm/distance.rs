@@ -82,7 +82,8 @@ where
     }
     let dx = end.x() - start.x();
     let dy = end.y() - start.y();
-    let r = ((point.x() - start.x()) * dx + (point.y() - start.y()) * dy) / (dx.powi(2) + dy.powi(2));
+    let r =
+        ((point.x() - start.x()) * dx + (point.y() - start.y()) * dy) / (dx.powi(2) + dy.powi(2));
     if r <= T::zero() {
         return point.distance(start);
     }
@@ -440,7 +441,7 @@ where
     pub(crate) fn ring_contains_point(&self, p: &Point<T>) -> bool {
         match get_position(p, &self.exterior) {
             PositionPoint::Inside => true,
-            PositionPoint::OnBoundary | PositionPoint::Outside => false
+            PositionPoint::OnBoundary | PositionPoint::Outside => false,
         }
     }
 }
@@ -482,7 +483,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use types::{Coordinate, Line, LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon};
+    use types::{Coordinate, Line, LineString, MultiLineString, MultiPoint, MultiPolygon, Point,
+                Polygon};
     use algorithm::distance::{line_segment_distance, nearest_neighbour_distance, Distance};
     use algorithm::convexhull::ConvexHull;
     use super::*;

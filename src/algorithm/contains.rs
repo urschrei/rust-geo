@@ -142,7 +142,8 @@ pub(crate) enum PositionPoint {
 }
 
 pub(crate) fn get_position<T>(p: &Point<T>, linestring: &LineString<T>) -> PositionPoint
-    where T: Float
+where
+    T: Float,
 {
     // See: http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
     //      http://geospatialpython.com/search
@@ -258,7 +259,8 @@ where
 {
     fn contains(&self, bbox: &Bbox<T>) -> bool {
         // All points of LineString must be in the polygon ?
-        self.xmin <= bbox.xmin && self.xmax >= bbox.xmax && self.ymin <= bbox.ymin && self.ymax >= bbox.ymax
+        self.xmin <= bbox.xmin && self.xmax >= bbox.xmax && self.ymin <= bbox.ymin
+            && self.ymax >= bbox.ymax
     }
 }
 
