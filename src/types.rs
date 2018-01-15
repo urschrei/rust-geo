@@ -697,7 +697,7 @@ impl<T: CoordinateType> IntoIterator for LineString<T> {
 ///
 /// Can be created from a `Vec` of `LineString`s, or from an Iterator which yields `LineString`s.
 ///
-/// Iterating over this objects, yields the component `LineString`s.
+/// Iterating over this object yields the component `LineString`s.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct MultiLineString<T>(pub Vec<LineString<T>>)
 where
@@ -821,7 +821,7 @@ where
 ///
 /// Can be created from a `Vec` of `Polygon`s, or `collect`ed from an Iterator which yields `Polygon`s.
 ///
-/// Iterating over this object yields the component Polygons.
+/// Iterating over this object yields the component `Polygon`s.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct MultiPolygon<T>(pub Vec<Polygon<T>>)
 where
@@ -852,7 +852,7 @@ impl<T: CoordinateType> IntoIterator for MultiPolygon<T> {
 ///
 /// Can be created from a `Vec` of Geometries, or from an Iterator which yields Geometries.
 ///
-/// Iterating over this objects, yields the component Geometries.
+/// Iterating over this object yields its component Geometries.
 #[derive(PartialEq, Clone, Debug)]
 pub struct GeometryCollection<T>(pub Vec<Geometry<T>>)
 where
