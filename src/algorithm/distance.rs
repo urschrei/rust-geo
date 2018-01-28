@@ -70,8 +70,8 @@ pub trait Distance<T, Rhs = Self> {
     fn distance(&self, rhs: &Rhs) -> T;
 }
 
-// Return minimum distance between a Point and a Line segment
-// This is a helper for Point-to-LineString and Point-to-Polygon distance
+/// Return minimum distance between a Point and a Line segment
+/// This is a helper for Point-to-LineString and Point-to-Polygon distance
 // adapted from https://github.com/OSGeo/geos/blob/master/src/algorithm/CGAlgorithms.cpp#L191
 fn line_segment_distance<T>(point: &Point<T>, start: &Point<T>, end: &Point<T>) -> T
 where
