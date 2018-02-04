@@ -398,7 +398,8 @@ where
     T: Float,
 {
     (T::from(0.5).unwrap()
-        * (a.x() * b.y() - a.y() * b.x() + a.y() * c.x() - a.x() * c.y() + b.x() * c.y() - c.x() * b.y()))
+        * (a.x() * b.y() - a.y() * b.x() + a.y() * c.x() - a.x() * c.y() + b.x() * c.y()
+            - c.x() * b.y()))
 }
 
 /// positive implies a -> b -> c is counter-clockwise, negative implies clockwise
@@ -494,9 +495,11 @@ where
             false => {
                 state.vertical = false;
                 if state.p1.x() > state.p1next.x() {
-                    state.slope = (state.p1.y() - state.p1next.y()) / (state.p1.x() - state.p1next.x());
+                    state.slope =
+                        (state.p1.y() - state.p1next.y()) / (state.p1.x() - state.p1next.x());
                 } else {
-                    state.slope = (state.p1next.y() - state.p1.y()) / (state.p1next.x() - state.p1.x());
+                    state.slope =
+                        (state.p1next.y() - state.p1.y()) / (state.p1next.x() - state.p1.x());
                 }
             }
         }
@@ -511,9 +514,11 @@ where
             false => {
                 state.vertical = false;
                 if state.q2.x() > state.q2next.x() {
-                    state.slope = (state.q2.y() - state.q2next.y()) / (state.q2.x() - state.q2next.x());
+                    state.slope =
+                        (state.q2.y() - state.q2next.y()) / (state.q2.x() - state.q2next.x());
                 } else {
-                    state.slope = (state.q2next.y() - state.q2.y()) / (state.q2next.x() - state.q2.x());
+                    state.slope =
+                        (state.q2next.y() - state.q2.y()) / (state.q2next.x() - state.q2.x());
                 }
             }
         }
