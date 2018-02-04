@@ -333,7 +333,7 @@ where
 // Polygon to Polygon distance
 impl<T> Distance<T, Polygon<T>> for Polygon<T>
 where
-    T: Float + FloatConst + Signed + SpadeFloat,
+    T: Float + FloatConst + SpadeFloat,
 {
     /// This implementation has a "fast path" in cases where both input polygons are convex:
     /// it switches to an implementation of the "rotating calipers" method described in [Pirzadeh (1999), pp24—30](http://digitool.library.mcgill.ca/R/?func=dbin-jump-full&object_id=21623&local_base=GEN01-MCG02),
@@ -450,7 +450,7 @@ where
 /// This is pretty slow and memory-inefficient but certainly better than quadratic time
 fn nearest_neighbour_distance<T>(geom1: &LineString<T>, geom2: &LineString<T>) -> T
 where
-    T: Float + FloatConst + Signed + SpadeFloat,
+    T: Float + SpadeFloat,
 {
     let tree_a: RTree<SimpleEdge<_>> = RTree::bulk_load(
         geom1
