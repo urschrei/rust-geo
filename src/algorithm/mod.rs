@@ -36,9 +36,6 @@ pub mod translate;
 pub mod map_coords;
 /// Determine the closest point between two objects.
 pub mod closest_point;
-/// Produces geometry from PostGIS.
-#[cfg(feature = "postgis-integration")]
-pub mod from_postgis;
 /// Converts geometry into PostGIS types.
 #[cfg(feature = "postgis-integration")]
 pub mod to_postgis;
