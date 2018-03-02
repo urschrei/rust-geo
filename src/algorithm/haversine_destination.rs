@@ -29,7 +29,9 @@ where
         // WGS84 equatorial radius is 6378137.0
         let rad = distance / T::from(6371000.0).unwrap();
 
-        let lat = { center_lat.sin() * rad.cos() + center_lat.cos() * rad.sin() * bearing_rad.cos() }.asin();
+        let lat = {
+            center_lat.sin() * rad.cos() + center_lat.cos() * rad.sin() * bearing_rad.cos()
+        }.asin();
         let lng = { bearing_rad.sin() * rad.sin() * center_lat.cos() }
             .atan2(rad.cos() - center_lat.sin() * lat.sin()) + center_lng;
 
@@ -37,10 +39,42 @@ where
     }
 }
 
+pub trait HaversineBearing<T: Float> {
+    /// Returns a new bearing, given origin and destination points
+    ///
+    /// ```
+    /// use geo::Point;
+    /// use geo::algorithm::haversine_destination::HaversineBearing;
+    ///
+    /// let orig = Point::<f64>::new(0.00000002, 51.23565754);
+    /// let dest = Point::<f64>::new(0.00000012, 51.23565764);
+    /// let bearing = haversine_bearing(&orig, &dest);
+    /// assert_eq!(bearing, 10.0)
+    /// ```
+    fn haversine_bearing(&self, origin: &Point<T>, destination: &Point<T>) -> T;
+}
+
+impl<T> HaversineBearing<T> for Point<T>
+where
+    T: Float + FromPrimitive,
+{
+    fn haversine_bearing(&self, origin: &Point<T>, destination: &Point<T>) -> T {
+        // https://gist.github.com/geografa/1366401
+        let (lon1, lat1) = (origin.x().to_radians(), origin.y().to_radians());
+        let (lon2, lat2) = (destination.x().to_radians(), destination.y().to_radians());
+        let dlon = lon2 - lon1;
+        let bearing = T::atan2(
+            T::sin(dlon) * T::cos(lat2),
+            T::cos(lat1) * T::sin(lat2) - T::sin(lat1) * T::cos(lat2) * T::cos(dlon),
+        );
+        bearing.to_degrees()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use algorithm::haversine_distance::HaversineDistance;
+    use algorithm::haversine_distance::{HaversineDistance};
     use num_traits::pow;
 
     #[test]
