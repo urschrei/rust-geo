@@ -1039,6 +1039,7 @@ impl<T: CoordinateType> Geometry<T> {
 
 #[cfg(test)]
 mod test {
+    use spade::primitives::SimpleEdge;
     use types::*;
 
     #[test]
