@@ -104,7 +104,7 @@ where
     let mut sin;
     let pnext = poly.exterior.0[poly.next_vertex(idx)];
     let pprev = poly.exterior.0[poly.prev_vertex(idx)];
-    let clockwise = cross_prod(&pprev, p, &pnext) < T::zero();
+    let clockwise = pprev.cross_prod(p, &pnext) < T::zero();
     let slope_prev;
     let slope_next;
     // Slope isn't 0, things are complicated
@@ -309,7 +309,7 @@ where
     let hundred = T::from(100).unwrap();
     let pnext = poly.exterior.0[poly.next_vertex(idx)];
     let pprev = poly.exterior.0[poly.prev_vertex(idx)];
-    let clockwise = cross_prod(&pprev, p, &pnext) < T::zero();
+    let clockwise = pprev.cross_prod(p, &pnext) < T::zero();
     let punit;
     if !vertical {
         punit = unitvector(m, poly, p, idx);
@@ -400,14 +400,6 @@ where
     (T::from(0.5).unwrap()
         * (a.x() * b.y() - a.y() * b.x() + a.y() * c.x() - a.x() * c.y() + b.x() * c.y()
             - c.x() * b.y()))
-}
-
-/// positive implies a -> b -> c is counter-clockwise, negative implies clockwise
-pub(crate) fn cross_prod<T>(p_a: &Point<T>, p_b: &Point<T>, p_c: &Point<T>) -> T
-where
-    T: Float,
-{
-    (p_b.x() - p_a.x()) * (p_c.y() - p_a.y()) - (p_b.y() - p_a.y()) * (p_c.x() - p_a.x())
 }
 
 /// Does abc turn left?
