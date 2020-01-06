@@ -4,11 +4,11 @@ use crate::{
 };
 use std::error::Error;
 
-/// Map a function over all the coordinates in an object, returning a new one
+/// Map a function or closure over all the coordinates in an object, returning a new object
 pub trait MapCoords<T, NT> {
     type Output;
 
-    /// Apply a function to all the coordinates in a geometric object, returning a new object.
+    /// Apply a function to all the coordinates in a geometric object, returning a new object
     ///
     /// # Examples
     ///
@@ -39,11 +39,11 @@ pub trait MapCoords<T, NT> {
         NT: CoordinateType;
 }
 
-/// Map a fallible function over all the coordinates in a geometry, returning a Result
+/// Map a _fallible_ function or closure over all the coordinates in a geometry, returning a new object in a `Result`
 pub trait TryMapCoords<T, NT> {
     type Output;
 
-    /// Map a fallible function over all the coordinates in a geometry, returning a Result
+    /// Map a fallible function over all the coordinates in a geometry, returning a new object in a `Result`
     ///
     /// # Examples
     ///
@@ -76,18 +76,19 @@ pub trait TryMapCoords<T, NT> {
     /// # #[cfg(feature = "use-proj")]
     /// let to_feet = Proj::new_known_crs(&from, &to, None).unwrap();
     /// # #[cfg(feature = "use-proj")]
+    /// // We're passing a closure which calls a proj method, returning a Result
     /// let f = |x: f64, y: f64| {
     ///     // proj can accept Point, Coordinate, Tuple, and array values, returning a Result
-    ///     let shifted = to_feet.convert((x, y))?;
+    ///     // Because we've specified EPSG:4326, PROJ expects coordinates in Lat, Lon order
+    ///     let shifted = to_feet.convert((y, x))?;
     ///     Ok((shifted.x(), shifted.y()))
     /// };
     /// # #[cfg(feature = "use-proj")]
     /// // 👽
     /// # #[cfg(feature = "use-proj")]
     /// let usa_m = Point::new(-115.797615, 37.2647978);
-    /// // PROJ expects coordinates in EPSG:4326 order: i.e. Lat, Lon
     /// # #[cfg(feature = "use-proj")]
-    /// let usa_ft = usa_m.try_map_coords(|&(x, y)| f(y, x)).unwrap();
+    /// let usa_ft = usa_m.try_map_coords(|&(x, y)| f(x, y)).unwrap();
     /// # #[cfg(feature = "use-proj")]
     /// assert_eq!(6693625.67217475, usa_ft.x());
     /// # #[cfg(feature = "proj")]
@@ -102,9 +103,9 @@ pub trait TryMapCoords<T, NT> {
         NT: CoordinateType;
 }
 
-/// Map all the coordinates in an object in place
+/// Map a function or closure over all the coordinates in an object, mutating it in place
 pub trait MapCoordsInplace<T> {
-    /// Apply a function to all the coordinates in a geometric object, in place
+    /// Apply a function or closure to all the coordinates in a geometric object, in place
     ///
     /// # Examples
     ///
@@ -113,9 +114,9 @@ pub trait MapCoordsInplace<T> {
     /// use geo::algorithm::map_coords::MapCoordsInplace;
     ///
     /// let mut p = Point::new(10., 20.);
-    /// p.map_coords_inplace(|&(x, y)| (x+1000., y*2.));
+    /// p.map_coords_inplace(|&(x, y)| (x + 1000.0, y * 2.0));
     ///
-    /// assert_eq!(p, Point::new(1010., 40.));
+    /// assert_eq!(p, Point::new(1010.0, 40.0));
     /// ```
     fn map_coords_inplace(&mut self, func: impl Fn(&(T, T)) -> (T, T) + Copy)
     where
@@ -745,13 +746,13 @@ mod test {
         let to_feet = Proj::new_known_crs(&from, &to, None).unwrap();
 
         let f = |x: f64, y: f64| {
-            let shifted = to_feet.convert((x, y))?;
+            // PROJ expects coordinates in EPSG:4326 order: i.e. Lat, Lon (y, x)
+            let shifted = to_feet.convert((y, x))?;
             Ok((shifted.x(), shifted.y()))
         };
         // 👽
         let usa_m = Point::new(-115.797615, 37.2647978);
-        // PROJ expects coordinates in EPSG:4326 order: i.e. Lat, Lon
-        let usa_ft = usa_m.try_map_coords(|&(x, y)| f(y, x)).unwrap();
+        let usa_ft = usa_m.try_map_coords(|&(x, y)| f(x, y)).unwrap();
         assert_eq!(6693625.67217475, usa_ft.x());
         assert_eq!(3497301.5918027186, usa_ft.y());
     }
