@@ -1,7 +1,6 @@
 use crate::{Coordinate, CoordinateType};
 use num_traits::Float;
-use num_traits::NumCast;
-use robust::{orient2d, Coord};
+use robust::orient2d;
 use std::ops::Add;
 use std::ops::Neg;
 use std::ops::Sub;
@@ -74,7 +73,7 @@ where
     ///
     /// assert_eq!(p.x(), 1.234);
     /// ```
-    pub fn x(self) -> T {
+    pub fn x(&self) -> T {
         self.0.x
     }
 
@@ -106,7 +105,7 @@ where
     ///
     /// assert_eq!(p.y(), 2.345);
     /// ```
-    pub fn y(self) -> T {
+    pub fn y(&self) -> T {
         self.0.y
     }
 
@@ -249,6 +248,15 @@ where
     }
 }
 
+impl<T: Float> robust::Coord<T> for Point<T> {
+    fn x(&self) -> T {
+        self.0.x
+    }
+    fn y(&self) -> T {
+        self.0.y
+    }
+}
+
 impl<T> Point<T>
 where
     T: Float,
@@ -258,19 +266,7 @@ where
     /// Returns a negative value if they occur in clockwise order (`pc` lies to the **right** of the directed line `pa, pb`).  
     /// Returns `0` if they are **collinear**.  
     pub fn orient2d(self, point_b: Point<T>, point_c: Point<T>) -> T {
-        let pa: Coord<f64> = Coord {
-            x: NumCast::from(self.x()).unwrap(),
-            y: NumCast::from(self.y()).unwrap(),
-        };
-        let pb: Coord<f64> = Coord {
-            x: NumCast::from(point_b.x()).unwrap(),
-            y: NumCast::from(point_b.y()).unwrap(),
-        };
-        let pc: Coord<f64> = Coord {
-            x: NumCast::from(point_c.x()).unwrap(),
-            y: NumCast::from(point_c.y()).unwrap(),
-        };
-        T::from(orient2d(pa, pb, pc)).unwrap()
+        T::from(orient2d(self, point_b, point_c)).unwrap()
     }
 }
 
